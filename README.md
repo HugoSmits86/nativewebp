@@ -6,7 +6,7 @@ Currently, the encoder supports only WebP lossless images (VP8L).
 
 ## Benchmark
 
-We conducted a quick benchmark to showcase file size reduction and encoding performance. Using an image from Google’s WebP Lossless and Alpha Gallery, we compared the results of our nativewebp encoder with the standard PNG decoder. The tests were performed on a 2023 Mac mini equipped with an Apple M2 chip and 16GB of RAM.
+We conducted a quick benchmark to showcase file size reduction and encoding performance. Using an image from Google’s WebP Lossless and Alpha Gallery, we compared the results of our nativewebp encoder with the standard PNG decoder.
 
 <p align="center">
   <img src="https://www.gstatic.com/webp/gallery3/4.png">
