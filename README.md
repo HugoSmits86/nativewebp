@@ -39,7 +39,7 @@ We conducted a quick benchmark to showcase file size reduction and encoding perf
 
 To install the nativewebp package, use the following command:
 ```Bash
-go get github.com/yourusername/native-webp-encoder
+go get github.com/HugoSmits86/nativewebp
 ```
 ## Usage
 
