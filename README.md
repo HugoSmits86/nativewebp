@@ -28,8 +28,8 @@ We conducted a quick benchmark to showcase file size reduction and encoding perf
     </tr>
     <tr>
       <td>encoding time</td>
-      <td>1950541 ns/op</td>
       <td>5651958 ns/op</td>
+      <td>1950541 ns/op</td>
       <td>65% faster</td>
     </tr>
   </table>
