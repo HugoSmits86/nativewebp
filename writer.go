@@ -265,20 +265,9 @@ func applyPredictTransform(pixels []color.NRGBA, width, height int) (int, []colo
 
             for tx := x << tileBits; tx < mx; tx++ {
                 for ty := y << tileBits; ty < my; ty++ {
-                    var d color.NRGBA
-                    if tx == 0 && ty == 0 {
-                        d = color.NRGBA{0, 0, 0, 255}
-                    } else if tx == 0 {
-                        d = pixels[(ty - 1) * width + tx]
-                    } else if ty == 0 {
-                        d = pixels[ty * width + (tx - 1)]
-                    } else { 
-                        // left prediction 
-                        d = pixels[ty * width + (tx - 1)]
-                    }
+                    d := applyFilter(pixels, width, tx, ty, best)
                     
                     off := ty * width + tx
-
                     deltas[off] = color.NRGBA{
                         R: uint8(pixels[off].R - d.R),
                         G: uint8(pixels[off].G - d.G),
@@ -295,4 +284,93 @@ func applyPredictTransform(pixels []color.NRGBA, width, height int) (int, []colo
     copy(pixels, deltas)
     
     return tileBits, blocks
+}
+
+func applyFilter(pixels []color.NRGBA, width, x, y, prediction int) color.NRGBA {
+    if x == 0 && y == 0 {
+        return color.NRGBA{0, 0, 0, 255}
+    } else if x == 0 {
+        return pixels[(y - 1) * width + x]
+    } else if y == 0 {
+        return pixels[y * width + (x - 1)]
+    }
+    
+    t := pixels[(y - 1) * width + x]
+    l := pixels[y * width + (x - 1)]
+
+    tl := pixels[(y - 1) * width + (x - 1)]
+    tr := pixels[(y - 1) * width + (x + 1)]
+
+    avarage2 := func(a, b color.NRGBA) color.NRGBA {
+        return color.NRGBA {
+            uint8((int(a.R) + int(b.R)) / 2), 
+            uint8((int(a.G) + int(b.G)) / 2),  
+            uint8((int(a.B) + int(b.B)) / 2),  
+            uint8((int(a.A) + int(b.A)) / 2),
+        }
+    }
+
+    filters := []func(t, l, tl, tr color.NRGBA) color.NRGBA {
+        func(t, l, tl, tr color.NRGBA) color.NRGBA { return color.NRGBA{0, 0, 0, 255} },
+        func(t, l, tl, tr color.NRGBA) color.NRGBA { return l },
+        func(t, l, tl, tr color.NRGBA) color.NRGBA { return t },
+        func(t, l, tl, tr color.NRGBA) color.NRGBA { return tr },
+        func(t, l, tl, tr color.NRGBA) color.NRGBA { return tl },
+        func(t, l, tl, tr color.NRGBA) color.NRGBA {
+            return avarage2(avarage2(l, tr), t)
+        },
+        func(t, l, tl, tr color.NRGBA) color.NRGBA {
+            return avarage2(l, tl)
+        },
+        func(t, l, tl, tr color.NRGBA) color.NRGBA {
+            return avarage2(l, t)
+        },
+        func(t, l, tl, tr color.NRGBA) color.NRGBA {
+            return avarage2(tl, t)
+        },
+        func(t, l, tl, tr color.NRGBA) color.NRGBA {
+            return avarage2(t, tr)
+        },
+        func(t, l, tl, tr color.NRGBA) color.NRGBA {
+            return avarage2(avarage2(l, tl), avarage2(t, tr))
+        },
+        func(t, l, tl, tr color.NRGBA) color.NRGBA { 
+            pr := float64(l.R) + float64(t.R) - float64(tl.R)
+            pg := float64(l.G) + float64(t.G) - float64(tl.G)
+            pb := float64(l.B) + float64(t.B) - float64(tl.B)
+            pa := float64(l.A) + float64(t.A) - float64(tl.A)
+
+            // Manhattan distances to estimates for left and top pixels.
+            pl := math.Abs(pa - float64(l.A)) + math.Abs(pr - float64(l.R)) + 
+                  math.Abs(pg - float64(l.G)) + math.Abs(pb - float64(l.B))
+            pt := math.Abs(pa - float64(t.A)) + math.Abs(pr - float64(t.R)) + 
+                  math.Abs(pg - float64(t.G)) + math.Abs(pb - float64(t.B))
+
+            if pl < pt {
+                return l
+            }
+
+            return t
+        },
+        func(t, l, tl, tr color.NRGBA) color.NRGBA {
+            return color.NRGBA{
+                uint8(max(min(int(l.R) + int(t.R) - int(tl.R), 255), 0)),
+                uint8(max(min(int(l.G) + int(t.G) - int(tl.G), 255), 0)),
+                uint8(max(min(int(l.B) + int(t.B) - int(tl.B), 255), 0)),
+                uint8(max(min(int(l.A) + int(t.A) - int(tl.A), 255), 0)),
+            }
+        },
+        func(t, l, tl, tr color.NRGBA) color.NRGBA {
+            a := avarage2(l, t)
+
+            return color.NRGBA{
+                uint8(max(min(int(a.R) + (int(a.R) - int(tl.R)) / 2, 255), 0)),
+                uint8(max(min(int(a.G) + (int(a.G) - int(tl.G)) / 2, 255), 0)),
+                uint8(max(min(int(a.B) + (int(a.B) - int(tl.B)) / 2, 255), 0)),
+                uint8(max(min(int(a.A) + (int(a.A) - int(tl.A)) / 2, 255), 0)),
+            }
+        },
+    }
+    
+    return filters[prediction](t, l, tl, tr)
 }

@@ -874,3 +874,49 @@ func TestApplyPredictTransform(t *testing.T) {
         }
     }
 }
+
+func TestApplyFilter(t *testing.T) {
+    pixels := []color.NRGBA{
+        {R: 100, G: 100, B: 100, A: 255}, {R: 50, G: 50, B: 50, A: 255}, {R: 25, G: 25, B: 25, A: 255},
+        {R: 200, G: 200, B: 200, A: 255}, {R: 75, G: 75, B: 75, A: 255}, {R: 0, G: 0, B: 0, A: 0}, 
+        //added extra row for filter 11 if statement check
+        {R: 100, G: 100, B: 100, A: 255}, {R: 250, G: 250, B: 250, A: 255}, {R: 225, G: 225, B: 225, A: 255},
+        {R: 200, G: 200, B: 200, A: 255}, {R: 75, G: 75, B: 75, A: 255}, {R: 0, G: 0, B: 0, A: 0},
+    }
+
+    width := 3
+
+    for id, tt := range []struct {
+        prediction int
+        x int
+        y int
+        expected   color.NRGBA
+    }{
+        // x y edge cases
+        {prediction: 0, x: 0, y: 0, expected: color.NRGBA{R: 0, G: 0, B: 0, A: 255}},
+        {prediction: 0, x: 0, y: 1, expected: color.NRGBA{R: 100, G: 100, B: 100, A: 255}},
+        {prediction: 0, x: 1, y: 0, expected: color.NRGBA{R: 100, G: 100, B: 100, A: 255}},
+        //filter predictions
+        {prediction: 0, x: 1, y: 1, expected: color.NRGBA{R: 0, G: 0, B: 0, A: 255}},
+        {prediction: 1, x: 1, y: 1, expected: color.NRGBA{R: 200, G: 200, B: 200, A: 255}},
+        {prediction: 2, x: 1, y: 1, expected: color.NRGBA{R: 50, G: 50, B: 50, A: 255}},
+        {prediction: 3, x: 1, y: 1, expected: color.NRGBA{R: 25, G: 25, B: 25, A: 255}},
+        {prediction: 4, x: 1, y: 1, expected: color.NRGBA{R: 100, G: 100, B: 100, A: 255}},
+        {prediction: 5, x: 1, y: 1, expected: color.NRGBA{R: 81, G: 81, B: 81, A: 255}},
+        {prediction: 6, x: 1, y: 1, expected: color.NRGBA{R: 150, G: 150, B: 150, A: 255}},
+        {prediction: 7, x: 1, y: 1, expected: color.NRGBA{R: 125, G: 125, B: 125, A: 255}},
+        {prediction: 8, x: 1, y: 1, expected: color.NRGBA{R: 75, G: 75, B: 75, A: 255}},
+        {prediction: 9, x: 1, y: 1, expected: color.NRGBA{R: 37, G: 37, B: 37, A: 255}},
+        {prediction: 10, x: 1, y: 1, expected: color.NRGBA{R: 93, G: 93, B: 93, A: 255}},
+        {prediction: 11, x: 1, y: 1, expected: color.NRGBA{R: 200, G: 200, B: 200, A: 255}},
+        {prediction: 11, x: 1, y: 3, expected: color.NRGBA{R: 250, G: 250, B: 250, A: 255}}, // diff Manhattan distances
+        {prediction: 12, x: 1, y: 1, expected: color.NRGBA{R: 150, G: 150, B: 150, A: 255}},
+        {prediction: 13, x: 1, y: 1, expected: color.NRGBA{R: 137, G: 137, B: 137, A: 255}},
+    } {
+        got := applyFilter(pixels, width, tt.x, tt.y, tt.prediction)
+
+        if !reflect.DeepEqual(got, tt.expected) {
+            t.Errorf("test %d: mismatch\nexpected: %+v\n     got: %+v", id, tt.expected, got)
+        }
+    }
+}
