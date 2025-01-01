@@ -6,6 +6,7 @@ import (
     //------------------------------
     "io"
     "bytes"
+    "math"
     "encoding/binary"
     //------------------------------
     //imaging
@@ -48,7 +49,7 @@ func Encode(w io.Writer, img image.Image) error {
     transforms[TransformPredict] = true
     transforms[TransformSubGreen] = true
 
-    WriteBitStreamData(s, rgba, 4, transforms)
+    writeBitStreamData(s, rgba, 4, transforms)
 
     s.AlignByte()
 
@@ -80,59 +81,59 @@ func writeWebPHeader(w io.Writer, b *bytes.Buffer) {
 }
 
 func writeBitStreamHeader(w *BitWriter, bounds image.Rectangle, hasAlpha bool) {
-    w.WriteBits(0x2f, 8)
+    w.writeBits(0x2f, 8)
 
-    w.WriteBits(uint64(bounds.Dx() - 1), 14)
-    w.WriteBits(uint64(bounds.Dy() - 1), 14)
+    w.writeBits(uint64(bounds.Dx() - 1), 14)
+    w.writeBits(uint64(bounds.Dy() - 1), 14)
 
     if hasAlpha {
-        w.WriteBits(1, 1)
+        w.writeBits(1, 1)
     } else {
-        w.WriteBits(0, 1)
+        w.writeBits(0, 1)
     }
 
-    w.WriteBits(0, 3)
+    w.writeBits(0, 3)
 }
 
-func WriteBitStreamData(w *BitWriter, img image.Image, colorCacheBits int, transforms [4]bool) error {
+func writeBitStreamData(w *BitWriter, img image.Image, colorCacheBits int, transforms [4]bool) error {
     pixels, err := flatten(img)
     if err != nil {
         return err
     }
 
     if transforms[TransformSubGreen] {
-        w.WriteBits(1, 1)
-        w.WriteBits(2, 2)
+        w.writeBits(1, 1)
+        w.writeBits(2, 2)
 
-        ApplySubtractGreenTransform(pixels)
+        applySubtractGreenTransform(pixels)
     }
 
     if transforms[TransformPredict] {
-        w.WriteBits(1, 1)
-        w.WriteBits(0, 2)
+        w.writeBits(1, 1)
+        w.writeBits(0, 2)
 
-        bits, blocks := ApplyPredictTransform(pixels, img.Bounds().Dx(), img.Bounds().Dy())
+        bits, blocks := applyPredictTransform(pixels, img.Bounds().Dx(), img.Bounds().Dy())
 
-        w.WriteBits(uint64(bits - 2), 3);
-        WriteImageData(w, blocks, false, colorCacheBits)
+        w.writeBits(uint64(bits - 2), 3);
+        writeImageData(w, blocks, false, colorCacheBits)
     }
 
-    w.WriteBits(0, 1) // end of transform
-    WriteImageData(w, pixels, true, colorCacheBits)
+    w.writeBits(0, 1) // end of transform
+    writeImageData(w, pixels, true, colorCacheBits)
 
     return nil
 }
 
-func WriteImageData(w *BitWriter, pixels []color.NRGBA, isRecursive bool, colorCacheBits int) {
+func writeImageData(w *BitWriter, pixels []color.NRGBA, isRecursive bool, colorCacheBits int) {
     if colorCacheBits > 0 {
-        w.WriteBits(1, 1)
-        w.WriteBits(uint64(colorCacheBits), 4) 
+        w.writeBits(1, 1)
+        w.writeBits(uint64(colorCacheBits), 4) 
     } else {
-        w.WriteBits(0, 1)
+        w.writeBits(0, 1)
     }
 
     if isRecursive {
-        w.WriteBits(0, 1)
+        w.writeBits(0, 1)
     }
 
     encoded := encodeImageData(pixels, colorCacheBits)
@@ -147,11 +148,11 @@ func WriteImageData(w *BitWriter, pixels []color.NRGBA, isRecursive bool, colorC
     }
 
     for i := 0; i < len(encoded); i ++ {
-        w.WriteCode(codes[0][encoded[i + 0]])
+        w.writeCode(codes[0][encoded[i + 0]])
         if encoded[i + 0] < 256 {
-            w.WriteCode(codes[1][encoded[i + 1]])
-            w.WriteCode(codes[2][encoded[i + 2]])
-            w.WriteCode(codes[3][encoded[i + 3]])
+            w.writeCode(codes[1][encoded[i + 1]])
+            w.writeCode(codes[2][encoded[i + 2]])
+            w.writeCode(codes[3][encoded[i + 3]])
             i += 3
         }
     }
@@ -240,14 +241,14 @@ func flatten(img image.Image) ([]color.NRGBA, error) {
     return pixels, nil
 }
 
-func ApplySubtractGreenTransform(pixels []color.NRGBA) {
+func applySubtractGreenTransform(pixels []color.NRGBA) {
     for i, _ := range pixels {
         pixels[i].R = pixels[i].R - pixels[i].G
         pixels[i].B = pixels[i].B - pixels[i].G
     }
 }
 
-func ApplyPredictTransform(pixels []color.NRGBA, width, height int) (int, []color.NRGBA) {
+func applyPredictTransform(pixels []color.NRGBA, width, height int) (int, []color.NRGBA) {
     tileBits := 4
     tileSize := 1 << tileBits
     bw := (width + tileSize - 1) / tileSize

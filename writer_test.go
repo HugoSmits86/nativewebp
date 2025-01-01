@@ -234,7 +234,7 @@ func TestWriteBitStreamDataErrors(t *testing.T) {
         b := &bytes.Buffer{}
         s := &BitWriter{Buffer: b}
 
-        err := WriteBitStreamData(s, tt.img, 0, [4]bool{})
+        err := writeBitStreamData(s, tt.img, 0, [4]bool{})
         if err == nil {
             t.Errorf("test %v: expected error %v got nil", id, tt.expectedMsg)
             continue
@@ -481,9 +481,9 @@ func TestWriteBitStreamData(t *testing.T) {
         b := &bytes.Buffer{}
         s := &BitWriter{Buffer: b}
 
-        err := WriteBitStreamData(s, img, tt.colorCacheBits, tt.transforms)
+        err := writeBitStreamData(s, img, tt.colorCacheBits, tt.transforms)
         if err != nil {
-            t.Fatalf("test %v: WriteBitStreamData returned error: %v", id, err)
+            t.Fatalf("test %v: writeBitStreamData returned error: %v", id, err)
         }
 
         result := b.Bytes()
@@ -568,7 +568,7 @@ func TestWriteImageData(t *testing.T) {
             BitBufferSize: 0,
         }
 
-        WriteImageData(writer, tt.inputPixels, tt.isRecursive, tt.colorCacheBits)
+        writeImageData(writer, tt.inputPixels, tt.isRecursive, tt.colorCacheBits)
 
         if !bytes.Equal(buffer.Bytes(), tt.expectedBits) {
             t.Errorf("test %d: buffer mismatch\nexpected: %v got: %v", id, tt.expectedBits, buffer.Bytes())
@@ -793,7 +793,7 @@ func TestApplySubtractGreenTransform(t *testing.T) {
         pixels := make([]color.NRGBA, len(tt.inputPixels))
         copy(pixels, tt.inputPixels)
 
-        ApplySubtractGreenTransform(pixels)
+        applySubtractGreenTransform(pixels)
 
         if !reflect.DeepEqual(pixels, tt.expectedPixels) {
             t.Errorf("test %d: pixel mismatch\nexpected: %+v\n     got: %+v", id, tt.expectedPixels, pixels)
@@ -801,7 +801,6 @@ func TestApplySubtractGreenTransform(t *testing.T) {
         }
     }
 }
-
 
 func TestApplyPredictTransform(t *testing.T) {
     for id, tt := range []struct {
@@ -848,7 +847,7 @@ func TestApplyPredictTransform(t *testing.T) {
             continue
         }
 
-        tileBit, blocks := ApplyPredictTransform(pixels, tt.width, tt.height)
+        tileBit, blocks := applyPredictTransform(pixels, tt.width, tt.height)
 
         if !reflect.DeepEqual(blocks, tt.expectedBlocks) {
             t.Errorf("test %v: expected blocks as %v got %v", id, tt.expectedBlocks, blocks)

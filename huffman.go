@@ -152,21 +152,21 @@ func writeHuffmanCodes(w *BitWriter, codes []HuffmanCode) {
     }
     
     if cnt == 0 {
-        w.WriteBits(1, 1)
-        w.WriteBits(0, 3)
+        w.writeBits(1, 1)
+        w.writeBits(0, 3)
     } else if cnt <= 2 && symbols[0] < 1 << 8 && symbols[1] < 1 << 8 {
-        w.WriteBits(1, 1)
-        w.WriteBits(uint64(cnt - 1), 1)
+        w.writeBits(1, 1)
+        w.writeBits(uint64(cnt - 1), 1)
         if symbols[0] <= 1 {
-            w.WriteBits(0, 1)
-            w.WriteBits(uint64(symbols[0]), 1)
+            w.writeBits(0, 1)
+            w.writeBits(uint64(symbols[0]), 1)
         } else {
-            w.WriteBits(1, 1)
-            w.WriteBits(uint64(symbols[0]), 8)
+            w.writeBits(1, 1)
+            w.writeBits(uint64(symbols[0]), 8)
         }
 
         if cnt > 1 {
-            w.WriteBits(uint64(symbols[1]), 8)
+            w.writeBits(uint64(symbols[1]), 8)
         }
     } else {
         writeFullHuffmanCode(w, codes)
@@ -191,17 +191,17 @@ func writeFullHuffmanCode(w *BitWriter, codes []HuffmanCode) {
         }
     }
 
-    w.WriteBits(0, 1)
-    w.WriteBits(uint64(cnt - 4), 4)
+    w.writeBits(0, 1)
+    w.writeBits(uint64(cnt - 4), 4)
 
     lenghts := buildHuffmanCodes(histo, 7)
     for i := 0; i < cnt; i++ {
-        w.WriteBits(uint64(lenghts[lengthCodeOrder[i]].Depth), 3)
+        w.writeBits(uint64(lenghts[lengthCodeOrder[i]].Depth), 3)
     }
 
-    w.WriteBits(0, 1)
+    w.writeBits(0, 1)
 
     for _, c := range codes {
-        w.WriteCode(lenghts[c.Depth])
+        w.writeCode(lenghts[c.Depth])
     }
 }

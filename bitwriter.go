@@ -13,7 +13,7 @@ type BitWriter struct {
     BitBufferSize   int
 }
 
-func (w *BitWriter) WriteBits(value uint64, n int) {
+func (w *BitWriter) writeBits(value uint64, n int) {
     if n <= 0 || n > 64 {
         panic("Invalid bit count: must be between 1 and 64")
     }
@@ -27,7 +27,7 @@ func (w *BitWriter) WriteBits(value uint64, n int) {
     w.writeThrough()
 }
 
-func (w *BitWriter) WriteCode(code HuffmanCode) {
+func (w *BitWriter) writeCode(code HuffmanCode) {
     if code.Depth <= 0 {
         return
     }
@@ -39,7 +39,7 @@ func (w *BitWriter) WriteCode(code HuffmanCode) {
         value >>= 1
     }
 
-    w.WriteBits(reversed, code.Depth)
+    w.writeBits(reversed, code.Depth)
 }
 
 func (w *BitWriter) AlignByte() {

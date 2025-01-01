@@ -60,7 +60,7 @@ func TestWriteBits(t *testing.T) {
                 BitBufferSize: tt.initialBufSize,
             }
 
-            writer.WriteBits(tt.value, tt.bitCount)
+            writer.writeBits(tt.value, tt.bitCount)
 
             // Validate state
             if !tt.expectPanic {
@@ -78,7 +78,7 @@ func TestWriteBits(t *testing.T) {
     }
 }
 
-func TestWriteCode(t *testing.T) {
+func TestwriteCode(t *testing.T) {
     for id, tt := range []struct {
         initialBuffer   []byte
         initialBitBuf   uint64
@@ -111,7 +111,7 @@ func TestWriteCode(t *testing.T) {
                     t.Errorf("test %v: unexpected panic: %v", id, r)
                 }
             }()
-            writer.WriteCode(tt.code)
+            writer.writeCode(tt.code)
         }()
 
         if !bytes.Equal(writer.Buffer.Bytes(), tt.expectedBuffer) {
