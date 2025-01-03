@@ -7,6 +7,7 @@ import (
     "io"
     "bytes"
     "math"
+    "slices"
     "encoding/binary"
     //------------------------------
     //imaging
@@ -17,15 +18,16 @@ import (
     //------------------------------
     //errors
     //------------------------------
-    //log
+    //"log"
     "errors"
 )
 
 type Transform int
 
 const (
-    TransformPredict    = Transform(0)
-    TransformSubGreen   = Transform(2)    
+    TransformPredict        = Transform(0)
+    TransformSubGreen       = Transform(2)
+    TransformColorIndexing  = Transform(3)     
 )
 
 func Encode(w io.Writer, img image.Image) error {
@@ -37,6 +39,8 @@ func Encode(w io.Writer, img image.Image) error {
         return errors.New("invalid image size")
     }
 
+    _, isIndexed := img.(*image.Paletted)
+
     rgba := image.NewNRGBA(img.Bounds())
     draw.Draw(rgba, rgba.Bounds(), img, img.Bounds().Min, draw.Src)
 
@@ -46,11 +50,15 @@ func Encode(w io.Writer, img image.Image) error {
     writeBitStreamHeader(s, rgba.Bounds(), !rgba.Opaque())
 
     var transforms [4]bool
-    transforms[TransformPredict] = true
-    transforms[TransformSubGreen] = true
+    transforms[TransformPredict] = !isIndexed
+    transforms[TransformSubGreen] = !isIndexed
+    transforms[TransformColorIndexing] = isIndexed
 
-    writeBitStreamData(s, rgba, 4, transforms)
-
+    err := writeBitStreamData(s, rgba, 4, transforms)
+    if err != nil {
+        return err
+    }
+    
     s.AlignByte()
 
     if b.Len() % 2 != 0 {
@@ -99,6 +107,19 @@ func writeBitStreamData(w *BitWriter, img image.Image, colorCacheBits int, trans
     pixels, err := flatten(img)
     if err != nil {
         return err
+    }
+
+    if transforms[TransformColorIndexing] {
+        w.writeBits(1, 1)
+        w.writeBits(3, 2)
+       
+        pal, err := applyPaletteTransform(pixels)
+        if err != nil {
+            return err
+        }
+       
+        w.writeBits(uint64(len(pal) - 1), 8);
+        writeImageData(w, pal, false, colorCacheBits);
     }
 
     if transforms[TransformSubGreen] {
@@ -373,4 +394,32 @@ func applyFilter(pixels []color.NRGBA, width, x, y, prediction int) color.NRGBA 
     }
     
     return filters[prediction](t, l, tl, tr)
+}
+
+func applyPaletteTransform(pixels []color.NRGBA) ([]color.NRGBA, error) {
+    var pal []color.NRGBA
+    for _, p := range pixels {
+        if !slices.Contains(pal, p) {
+            pal = append(pal, p)
+        }
+   
+        if len(pal) > 256 {
+            return nil, errors.New("palette exceeds 256 colors")
+        }
+    }
+   
+    for i, p := range pixels {
+        pixels[i] = color.NRGBA{G: uint8(slices.Index(pal, p)), A: 255}
+    }
+   
+    for i := len(pal) - 1; i > 0; i-- {
+        pal[i] = color.NRGBA{
+            R: pal[i].R - pal[i - 1].R,
+            G: pal[i].G - pal[i - 1].G,
+            B: pal[i].B - pal[i - 1].B,
+            A: pal[i].A - pal[i - 1].A,
+        }
+    }
+   
+    return pal, nil
 }

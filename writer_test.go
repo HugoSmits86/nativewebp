@@ -222,19 +222,36 @@ func TestEncode(t *testing.T) {
 }
 
 func TestWriteBitStreamDataErrors(t *testing.T) {
+    imgpal := image.NewNRGBA(image.Rect(0, 0, 257, 1))
+    for i := 0; i < 257; i++ {
+        imgpal.Set(i, 0, color.NRGBA{
+            R: uint8(i % 16 * 16),
+            G: uint8((i / 16) % 16 * 16),
+            B: uint8((i / 256) % 16 * 16),
+            A: 255,
+        })
+    }
+
     for id, tt := range []struct {
         img         image.Image
+        transforms  [4]bool
         expectedMsg string
     }{
         {
             image.NewRGBA(image.Rectangle{}),
+            [4]bool{ false, false, false, false, },
             "unsupported image format",
+        },
+        {
+            imgpal,
+            [4]bool{ false, false, false, true, },
+            "palette exceeds 256 colors",
         },
     }{
         b := &bytes.Buffer{}
         s := &BitWriter{Buffer: b}
 
-        err := writeBitStreamData(s, tt.img, 0, [4]bool{})
+        err := writeBitStreamData(s, tt.img, 0, tt.transforms)
         if err == nil {
             t.Errorf("test %v: expected error %v got nil", id, tt.expectedMsg)
             continue
@@ -477,6 +494,63 @@ func TestWriteBitStreamData(t *testing.T) {
                 0x6e, 0x1b, 0xca, 0x6d, 0x92, 0xef, 0x4a,
             },
         },
+        {   // paletted image
+            [4]bool{
+                true, 
+                false, 
+                true, 
+                true,
+            },
+            8,
+            []byte{
+                0x67, 0x88, 0x06, 0xc8, 0xb6, 0xd9, 0x01, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x01, 0x00, 
+                0x00, 0x0e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x40, 0x00, 0x91, 0x34, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x58, 0x00, 0x91, 0x34, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf8, 
+                0x40, 0x80, 0xf1, 0x9b, 0x41, 0xc9, 0x39, 0x5d, 
+                0x1a, 0xc5, 0x8c, 0xe8, 0x7f, 0x88, 0x1c, 0x10, 
+                0x0c, 0x24, 0x36, 0xda, 0x56, 0x6b, 0x55, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x40, 0xb5, 0x3a, 0xad, 0x02, 
+                0x00, 0x00, 0x1c, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x50, 0x80, 0x00, 0x00, 0x28, 0x14, 0xe0, 0x01, 
+                0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14, 0xa0, 
+                0x00, 0x00, 0x80, 0x07, 0x28, 0x00, 0x00, 0xa0, 
+                0x00, 0x00, 0xa0, 0x00, 0x00, 0x00, 0x04, 0x04, 
+                0x80, 0x44, 0x5a, 0x39, 0x01, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x52, 0x4a, 0x15, 0x02, 0x02, 0x40, 0x22, 
+                0xad, 0x9c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x29, 
+                0xa5, 0x2a, 0x22, 0x8a, 0x3b, 0x5d, 0x11, 0xeb, 
+                0x6e, 0x75, 0x03, 0xa8, 0x66, 0x28, 0x77, 0x97, 
+                0xf7, 0x9a, 0x2a, 0x34, 0x99, 0xfd, 0x13, 0x65, 
+                0x81, 0x0b, 0xbe, 0xd4, 0x66, 0xea, 0xf4, 0x7f, 
+                0xe7, 0xae, 0x31, 0x33, 0xff, 0x22, 0x78, 0x47, 
+                0x91, 0xde, 0x0c, 0x7d, 0x22, 0x3b, 0xa8, 0x9e, 
+                0xc2, 0xbd, 0xc3,
+            },
+        },
     }{
         b := &bytes.Buffer{}
         s := &BitWriter{Buffer: b}
@@ -487,6 +561,7 @@ func TestWriteBitStreamData(t *testing.T) {
         }
 
         result := b.Bytes()
+
         if !bytes.Equal(result, tt.expectedBytes) {
             t.Errorf("test %v: BitStream mismatch. Got %s, expected %s", id, result, tt.expectedBytes)
         }
@@ -917,6 +992,76 @@ func TestApplyFilter(t *testing.T) {
 
         if !reflect.DeepEqual(got, tt.expected) {
             t.Errorf("test %d: mismatch\nexpected: %+v\n     got: %+v", id, tt.expected, got)
+        }
+    }
+}
+
+func TestApplyPaletteTransformWithManualPixels(t *testing.T) {
+    //check for too many colors error
+    pixels := make([]color.NRGBA, 257)
+    for i := 0; i < 257; i++ {
+        pixels[i] = color.NRGBA{
+            R: uint8(i % 16 * 16),
+            G: uint8((i / 16) % 16 * 16),
+            B: uint8((i / 256) % 16 * 16),
+            A: 255,
+        }
+    }
+
+    _, err := applyPaletteTransform(pixels)
+
+    msg := "palette exceeds 256 colors"
+    if err == nil || err.Error() != msg {
+        t.Errorf("test: expected error %v got %v", msg, err)
+    }
+
+    for id, tt := range []struct {
+        pixels     []color.NRGBA
+        expectedPalette []color.NRGBA
+        expectedPixels  []color.NRGBA
+    }{
+        {
+            pixels: []color.NRGBA{
+                {R: 255, G: 0, B: 0, A: 255}, 
+                {R: 0, G: 255, B: 0, A: 255}, 
+                {R: 0, G: 0, B: 255, A: 255}, 
+                {R: 255, G: 255, B: 0, A: 255},
+                {R: 255, G: 0, B: 0, A: 255},  // repeat color 1
+            },
+            expectedPalette: []color.NRGBA{
+                {R: 255, G: 0, B: 0, A: 255},
+                {R: 1, G: 255, B: 0, A: 0},
+                {R: 0, G: 1, B: 255, A: 0},
+                {R: 255, G: 255, B: 1, A: 0},
+            },
+            expectedPixels: []color.NRGBA{
+                {R: 0, G: 0, B:0, A: 255}, 
+                {R: 0, G: 1, B:0, A: 255},  
+                {R: 0, G: 2, B:0, A: 255}, 
+                {R: 0, G: 3, B:0, A: 255}, 
+                {R: 0, G: 0, B:0, A: 255}, 
+            },
+        },
+    } {
+        // Copy inputPixels to avoid modifying the test case
+        pixels := make([]color.NRGBA, len(tt.pixels))
+        copy(pixels, tt.pixels)
+
+        pal, err := applyPaletteTransform(pixels)
+
+        if err != nil {
+            t.Errorf("test %d: unexpected error %v", id, err)
+            continue
+        }
+
+        if !reflect.DeepEqual(pal, tt.expectedPalette) {
+            t.Errorf("test %d: palette mismatch expected %+v got %+v", id, tt.expectedPalette, pal)
+            continue
+        }
+
+        if !reflect.DeepEqual(pixels, tt.expectedPixels) {
+            t.Errorf("test %d: pixel mismatch expected %+v got %+v", id, tt.expectedPixels, pixels)
+            continue
         }
     }
 }
