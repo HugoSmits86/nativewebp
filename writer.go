@@ -41,7 +41,7 @@ func Encode(w io.Writer, img image.Image) error {
 
     _, isIndexed := img.(*image.Paletted)
 
-    rgba := image.NewNRGBA(img.Bounds())
+    rgba := image.NewNRGBA(image.Rect(0, 0, img.Bounds().Dx(), img.Bounds().Dy()))
     draw.Draw(rgba, rgba.Bounds(), img, img.Bounds().Min, draw.Src)
 
     b := &bytes.Buffer{}
