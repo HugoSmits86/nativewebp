@@ -127,7 +127,7 @@ func TestWriteBitStreamHeader(t *testing.T) {
         },
     }{
         buffer := &bytes.Buffer{}
-        writer := &BitWriter{
+        writer := &bitWriter{
             Buffer:        buffer,
             BitBuffer:     0,
             BitBufferSize: 0,
@@ -249,7 +249,7 @@ func TestWriteBitStreamDataErrors(t *testing.T) {
         },
     }{
         b := &bytes.Buffer{}
-        s := &BitWriter{Buffer: b}
+        s := &bitWriter{Buffer: b}
 
         err := writeBitStreamData(s, tt.img, 0, tt.transforms)
         if err == nil {
@@ -273,10 +273,10 @@ func TestWriteBitStreamData(t *testing.T) {
     }{
         { 
             [4]bool{
-                false,  //TransformPredict
-                false,  //TransformColor
-                true,   //TransformSubGreen
-                false,  //TransformColorIndexing
+                false,  //transformPredict
+                false,  //transformColor
+                true,   //transformSubGreen
+                false,  //transformColorIndexing
             },
             0,
             []byte{
@@ -304,10 +304,10 @@ func TestWriteBitStreamData(t *testing.T) {
         },
         {
             [4]bool{
-                false,  //TransformPredict
-                false,  //TransformColor
-                true,   //TransformSubGreen
-                false,  //TransformColorIndexing
+                false,  //transformPredict
+                false,  //transformColor
+                true,   //transformSubGreen
+                false,  //transformColorIndexing
             },
             8,
             []byte{
@@ -343,10 +343,10 @@ func TestWriteBitStreamData(t *testing.T) {
         },
         { 
             [4]bool{
-                false,  //TransformPredict
-                true,   //TransformColor
-                false,  //TransformSubGreen
-                false,  //TransformColorIndexing
+                false,  //transformPredict
+                true,   //transformColor
+                false,  //transformSubGreen
+                false,  //transformColorIndexing
             },
             0,
             []byte{
@@ -375,10 +375,10 @@ func TestWriteBitStreamData(t *testing.T) {
         },
         {
             [4]bool{
-                false,  //TransformPredict
-                true,   //TransformColor
-                false,  //TransformSubGreen
-                false,  //TransformColorIndexing
+                false,  //transformPredict
+                true,   //transformColor
+                false,  //transformSubGreen
+                false,  //transformColorIndexing
             },
             8,
             []byte{
@@ -414,10 +414,10 @@ func TestWriteBitStreamData(t *testing.T) {
         },
         {
             [4]bool{
-                true,   //TransformPredict
-                false,  //TransformColor
-                false,  //TransformSubGreen
-                false,  //TransformColorIndexing
+                true,   //transformPredict
+                false,  //transformColor
+                false,  //transformSubGreen
+                false,  //transformColorIndexing
             },
             0,
             []byte{
@@ -449,10 +449,10 @@ func TestWriteBitStreamData(t *testing.T) {
         },
         {
             [4]bool{
-                true,   //TransformPredict
-                false,  //TransformColor
-                false,  //TransformSubGreen
-                false,  //TransformColorIndexing
+                true,   //transformPredict
+                false,  //transformColor
+                false,  //transformSubGreen
+                false,  //transformColorIndexing
             },
             8,
             []byte{
@@ -489,10 +489,10 @@ func TestWriteBitStreamData(t *testing.T) {
         },
         {
             [4]bool{
-                true,   //TransformPredict
-                false,  //TransformColor
-                true,   //TransformSubGreen
-                false,  //TransformColorIndexing
+                true,   //transformPredict
+                false,  //transformColor
+                true,   //transformSubGreen
+                false,  //transformColorIndexing
             },
             0,
             []byte{
@@ -525,10 +525,10 @@ func TestWriteBitStreamData(t *testing.T) {
         },
         {
             [4]bool{
-                true,   //TransformPredict
-                false,  //TransformColor
-                true,   //TransformSubGreen
-                false,  //TransformColorIndexing
+                true,   //transformPredict
+                false,  //transformColor
+                true,   //transformSubGreen
+                false,  //transformColorIndexing
             },
             8,
             []byte{
@@ -565,10 +565,10 @@ func TestWriteBitStreamData(t *testing.T) {
         },
         {   // paletted image
             [4]bool{
-                true,   //TransformPredict
-                false,  //TransformColor
-                true,   //TransformSubGreen
-                true,   //TransformColorIndexing
+                true,   //transformPredict
+                false,  //transformColor
+                true,   //transformSubGreen
+                true,   //transformColorIndexing
             },
             8,
             []byte{
@@ -622,7 +622,7 @@ func TestWriteBitStreamData(t *testing.T) {
         },
     }{
         b := &bytes.Buffer{}
-        s := &BitWriter{Buffer: b}
+        s := &bitWriter{Buffer: b}
 
         err := writeBitStreamData(s, img, tt.colorCacheBits, tt.transforms)
         if err != nil {
@@ -705,7 +705,7 @@ func TestWriteImageData(t *testing.T) {
         },
     } {
         buffer := &bytes.Buffer{}
-        writer := &BitWriter{
+        writer := &bitWriter{
             Buffer:        buffer,
             BitBuffer:     0,
             BitBufferSize: 0,
@@ -903,7 +903,7 @@ func TestFlatten(t *testing.T) {
     }
 }
 
-func TestApplyPredictTransform(t *testing.T) {
+func TestApplyPredicttransform(t *testing.T) {
     for id, tt := range []struct {
         width           int
         height          int
@@ -948,7 +948,7 @@ func TestApplyPredictTransform(t *testing.T) {
             continue
         }
 
-        tileBit, blocks := applyPredictTransform(pixels, tt.width, tt.height)
+        tileBit, blocks := applyPredicttransform(pixels, tt.width, tt.height)
 
         if !reflect.DeepEqual(blocks, tt.expectedBlocks) {
             t.Errorf("test %v: expected blocks as %v got %v", id, tt.expectedBlocks, blocks)
@@ -1022,7 +1022,7 @@ func TestApplyFilter(t *testing.T) {
     }
 }
 
-func TestApplyColorTransform(t *testing.T) {
+func TestApplyColortransform(t *testing.T) {
     for id, tt := range []struct {
         width          int
         height         int
@@ -1067,7 +1067,7 @@ func TestApplyColorTransform(t *testing.T) {
             continue
         }
 
-        tileBit, blocks := applyColorTransform(pixels, tt.width, tt.height)
+        tileBit, blocks := applyColortransform(pixels, tt.width, tt.height)
 
         if !reflect.DeepEqual(blocks, tt.expectedBlocks) {
             t.Errorf("test %v: expected blocks as %v got %v", id, tt.expectedBlocks, blocks)
@@ -1097,7 +1097,7 @@ func TestApplyColorTransform(t *testing.T) {
     }
 }
 
-func TestApplySubtractGreenTransform(t *testing.T) {
+func TestApplySubtractGreentransform(t *testing.T) {
     for id, tt := range []struct {
         inputPixels    []color.NRGBA
         expectedPixels []color.NRGBA
@@ -1130,7 +1130,7 @@ func TestApplySubtractGreenTransform(t *testing.T) {
         pixels := make([]color.NRGBA, len(tt.inputPixels))
         copy(pixels, tt.inputPixels)
 
-        applySubtractGreenTransform(pixels)
+        applySubtractGreentransform(pixels)
 
         if !reflect.DeepEqual(pixels, tt.expectedPixels) {
             t.Errorf("test %d: pixel mismatch\nexpected: %+v\n     got: %+v", id, tt.expectedPixels, pixels)
@@ -1139,7 +1139,7 @@ func TestApplySubtractGreenTransform(t *testing.T) {
     }
 }
 
-func TestApplyPaletteTransformWithManualPixels(t *testing.T) {
+func TestApplyPalettetransformWithManualPixels(t *testing.T) {
     //check for too many colors error
     pixels := make([]color.NRGBA, 257)
     for i := 0; i < 257; i++ {
@@ -1151,7 +1151,7 @@ func TestApplyPaletteTransformWithManualPixels(t *testing.T) {
         }
     }
 
-    _, err := applyPaletteTransform(pixels)
+    _, err := applyPalettetransform(pixels)
 
     msg := "palette exceeds 256 colors"
     if err == nil || err.Error() != msg {
@@ -1190,7 +1190,7 @@ func TestApplyPaletteTransformWithManualPixels(t *testing.T) {
         pixels := make([]color.NRGBA, len(tt.pixels))
         copy(pixels, tt.pixels)
 
-        pal, err := applyPaletteTransform(pixels)
+        pal, err := applyPalettetransform(pixels)
 
         if err != nil {
             t.Errorf("test %d: unexpected error %v", id, err)

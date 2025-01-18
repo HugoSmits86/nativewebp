@@ -7,13 +7,13 @@ import (
     "bytes"
 )
 
-type BitWriter struct {
+type bitWriter struct {
     Buffer          *bytes.Buffer
     BitBuffer       uint64
     BitBufferSize   int
 }
 
-func (w *BitWriter) writeBits(value uint64, n int) {
+func (w *bitWriter) writeBits(value uint64, n int) {
     if n <= 0 || n > 64 {
         panic("Invalid bit count: must be between 1 and 64")
     }
@@ -27,7 +27,7 @@ func (w *BitWriter) writeBits(value uint64, n int) {
     w.writeThrough()
 }
 
-func (w *BitWriter) writeCode(code HuffmanCode) {
+func (w *bitWriter) writeCode(code huffmanCode) {
     if code.Depth <= 0 {
         return
     }
@@ -42,12 +42,12 @@ func (w *BitWriter) writeCode(code HuffmanCode) {
     w.writeBits(reversed, code.Depth)
 }
 
-func (w *BitWriter) AlignByte() {
+func (w *bitWriter) AlignByte() {
     w.BitBufferSize = (w.BitBufferSize + 7) &^ 7
     w.writeThrough()
 }
 
-func (w *BitWriter) writeThrough() {
+func (w *bitWriter) writeThrough() {
     for w.BitBufferSize >= 8 {
         w.Buffer.WriteByte(byte(w.BitBuffer & 0xFF))
         w.BitBuffer >>= 8

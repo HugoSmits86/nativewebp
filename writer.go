@@ -22,13 +22,13 @@ import (
     "errors"
 )
 
-type Transform int
+type transform int
 
 const (
-    TransformPredict        = Transform(0)
-    TransformColor          = Transform(1)
-    TransformSubGreen       = Transform(2)
-    TransformColorIndexing  = Transform(3)     
+    transformPredict        = transform(0)
+    transformColor          = transform(1)
+    transformSubGreen       = transform(2)
+    transformColorIndexing  = transform(3)     
 )
 
 func Encode(w io.Writer, img image.Image) error {
@@ -46,15 +46,15 @@ func Encode(w io.Writer, img image.Image) error {
     draw.Draw(rgba, rgba.Bounds(), img, img.Bounds().Min, draw.Src)
 
     b := &bytes.Buffer{}
-    s := &BitWriter{Buffer: b}
+    s := &bitWriter{Buffer: b}
 
     writeBitStreamHeader(s, rgba.Bounds(), !rgba.Opaque())
 
     var transforms [4]bool
-    transforms[TransformPredict] = !isIndexed
-    transforms[TransformColor] = false
-    transforms[TransformSubGreen] = !isIndexed
-    transforms[TransformColorIndexing] = isIndexed
+    transforms[transformPredict] = !isIndexed
+    transforms[transformColor] = false
+    transforms[transformSubGreen] = !isIndexed
+    transforms[transformColorIndexing] = isIndexed
 
     err := writeBitStreamData(s, rgba, 4, transforms)
     if err != nil {
@@ -90,7 +90,7 @@ func writeWebPHeader(w io.Writer, b *bytes.Buffer) {
     w.Write(tmp)
 }
 
-func writeBitStreamHeader(w *BitWriter, bounds image.Rectangle, hasAlpha bool) {
+func writeBitStreamHeader(w *bitWriter, bounds image.Rectangle, hasAlpha bool) {
     w.writeBits(0x2f, 8)
 
     w.writeBits(uint64(bounds.Dx() - 1), 14)
@@ -105,17 +105,17 @@ func writeBitStreamHeader(w *BitWriter, bounds image.Rectangle, hasAlpha bool) {
     w.writeBits(0, 3)
 }
 
-func writeBitStreamData(w *BitWriter, img image.Image, colorCacheBits int, transforms [4]bool) error {
+func writeBitStreamData(w *bitWriter, img image.Image, colorCacheBits int, transforms [4]bool) error {
     pixels, err := flatten(img)
     if err != nil {
         return err
     }
 
-    if transforms[TransformColorIndexing] {
+    if transforms[transformColorIndexing] {
         w.writeBits(1, 1)
         w.writeBits(3, 2)
        
-        pal, err := applyPaletteTransform(pixels)
+        pal, err := applyPalettetransform(pixels)
         if err != nil {
             return err
         }
@@ -124,28 +124,28 @@ func writeBitStreamData(w *BitWriter, img image.Image, colorCacheBits int, trans
         writeImageData(w, pal, false, colorCacheBits);
     }
 
-    if transforms[TransformSubGreen] {
+    if transforms[transformSubGreen] {
         w.writeBits(1, 1)
         w.writeBits(2, 2)
 
-        applySubtractGreenTransform(pixels)
+        applySubtractGreentransform(pixels)
     }
 
-    if transforms[TransformColor] {
+    if transforms[transformColor] {
         w.writeBits(1, 1)
         w.writeBits(1, 2)
 
-        bits, blocks := applyColorTransform(pixels, img.Bounds().Dx(), img.Bounds().Dy())
+        bits, blocks := applyColortransform(pixels, img.Bounds().Dx(), img.Bounds().Dy())
 
         w.writeBits(uint64(bits - 2), 3);
         writeImageData(w, blocks, false, colorCacheBits)
     }
 
-    if transforms[TransformPredict] {
+    if transforms[transformPredict] {
         w.writeBits(1, 1)
         w.writeBits(0, 2)
 
-        bits, blocks := applyPredictTransform(pixels, img.Bounds().Dx(), img.Bounds().Dy())
+        bits, blocks := applyPredicttransform(pixels, img.Bounds().Dx(), img.Bounds().Dy())
 
         w.writeBits(uint64(bits - 2), 3);
         writeImageData(w, blocks, false, colorCacheBits)
@@ -157,7 +157,7 @@ func writeBitStreamData(w *BitWriter, img image.Image, colorCacheBits int, trans
     return nil
 }
 
-func writeImageData(w *BitWriter, pixels []color.NRGBA, isRecursive bool, colorCacheBits int) {
+func writeImageData(w *bitWriter, pixels []color.NRGBA, isRecursive bool, colorCacheBits int) {
     if colorCacheBits > 0 {
         w.writeBits(1, 1)
         w.writeBits(uint64(colorCacheBits), 4) 
@@ -172,12 +172,12 @@ func writeImageData(w *BitWriter, pixels []color.NRGBA, isRecursive bool, colorC
     encoded := encodeImageData(pixels, colorCacheBits)
     histos := computeHistograms(encoded, colorCacheBits)
 
-    var codes [][]HuffmanCode
+    var codes [][]huffmanCode
     for i := 0; i < 5; i++ {
-        c := buildHuffmanCodes(histos[i], 16)
+        c := buildhuffmanCodes(histos[i], 16)
         codes = append(codes, c)
 
-        writeHuffmanCodes(w, c)
+        writehuffmanCodes(w, c)
     }
 
     for i := 0; i < len(encoded); i ++ {
@@ -274,7 +274,7 @@ func flatten(img image.Image) ([]color.NRGBA, error) {
     return pixels, nil
 }
 
-func applyPredictTransform(pixels []color.NRGBA, width, height int) (int, []color.NRGBA) {
+func applyPredicttransform(pixels []color.NRGBA, width, height int) (int, []color.NRGBA) {
     tileBits := 4
     tileSize := 1 << tileBits
     bw := (width + tileSize - 1) / tileSize
@@ -402,7 +402,7 @@ func applyFilter(pixels []color.NRGBA, width, x, y, prediction int) color.NRGBA 
     return filters[prediction](t, l, tl, tr)
 }
 
-func applyColorTransform(pixels []color.NRGBA, width, height int) (int, []color.NRGBA) {
+func applyColortransform(pixels []color.NRGBA, width, height int) (int, []color.NRGBA) {
     tileBits := 4
     tileSize := 1 << tileBits
     bw := (width + tileSize - 1) / tileSize
@@ -411,7 +411,7 @@ func applyColorTransform(pixels []color.NRGBA, width, height int) (int, []color.
     blocks := make([]color.NRGBA, bw * bh)
     deltas := make([]color.NRGBA, width * height)
     
-    //TODO: analyze block and pick best Color Transform Element (CTE)
+    //TODO: analyze block and pick best Color transform Element (CTE)
     cte := color.NRGBA {
         R: 1,   //red to blue
         G: 2,   //green to blue
@@ -452,14 +452,14 @@ func applyColorTransform(pixels []color.NRGBA, width, height int) (int, []color.
     return tileBits, blocks
 }
 
-func applySubtractGreenTransform(pixels []color.NRGBA) {
+func applySubtractGreentransform(pixels []color.NRGBA) {
     for i, _ := range pixels {
         pixels[i].R = pixels[i].R - pixels[i].G
         pixels[i].B = pixels[i].B - pixels[i].G
     }
 }
 
-func applyPaletteTransform(pixels []color.NRGBA) ([]color.NRGBA, error) {
+func applyPalettetransform(pixels []color.NRGBA) ([]color.NRGBA, error) {
     var pal []color.NRGBA
     for _, p := range pixels {
         if !slices.Contains(pal, p) {

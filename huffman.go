@@ -8,26 +8,26 @@ import (
     "sort"
 )
 
-type HuffmanCode struct {
+type huffmanCode struct {
     Symbol  int
     Bits    int
     Depth   int
 }
 
-type Node struct {
+type node struct {
     IsBranch    bool
     Weight      int
     Symbol      int
-    BranchLeft  *Node
-    BranchRight *Node
+    BranchLeft  *node
+    BranchRight *node
 }
 
-type NodeHeap []*Node
-func (h NodeHeap) Len() int             { return len(h) }
-func (h NodeHeap) Less(i, j int) bool   { return h[i].Weight < h[j].Weight }
-func (h NodeHeap) Swap(i, j int)        { h[i], h[j] = h[j], h[i] }
-func (h *NodeHeap) Push(x interface{})  { *h = append(*h, x.(*Node)) }
-func (h *NodeHeap) Pop() interface{} {
+type nodeHeap []*node
+func (h nodeHeap) Len() int             { return len(h) }
+func (h nodeHeap) Less(i, j int) bool   { return h[i].Weight < h[j].Weight }
+func (h nodeHeap) Swap(i, j int)        { h[i], h[j] = h[j], h[i] }
+func (h *nodeHeap) Push(x interface{})  { *h = append(*h, x.(*node)) }
+func (h *nodeHeap) Pop() interface{} {
     old := *h
     n := len(old)
     x := old[n-1]
@@ -35,7 +35,7 @@ func (h *NodeHeap) Pop() interface{} {
     return x
 }
 
-func buildHuffmanTree(histo []int, maxDepth int) *Node {
+func buildHuffmanTree(histo []int, maxDepth int) *node {
     sum := 0
     for _, x := range histo {
         sum += x
@@ -43,7 +43,7 @@ func buildHuffmanTree(histo []int, maxDepth int) *Node {
 
     minWeight := sum >> (maxDepth - 2)
 
-    nHeap := &NodeHeap{}
+    nHeap := &nodeHeap{}
     heap.Init(nHeap)
 
     for s, w := range histo {
@@ -52,7 +52,7 @@ func buildHuffmanTree(histo []int, maxDepth int) *Node {
                 w = minWeight
             }
 
-            heap.Push(nHeap, &Node{
+            heap.Push(nHeap, &node{
                 Weight: w, 
                 Symbol: s,
             })
@@ -60,16 +60,16 @@ func buildHuffmanTree(histo []int, maxDepth int) *Node {
     }
     
     for nHeap.Len() < 1 {
-        heap.Push(nHeap, &Node{
+        heap.Push(nHeap, &node{
             Weight: minWeight, 
             Symbol: 0,
         })
     }
     
     for nHeap.Len() > 1 {
-        n1 := heap.Pop(nHeap).(*Node)
-        n2 := heap.Pop(nHeap).(*Node)
-        heap.Push(nHeap, &Node{
+        n1 := heap.Pop(nHeap).(*node)
+        n2 := heap.Pop(nHeap).(*node)
+        heap.Push(nHeap, &node{
             IsBranch: true, 
             Weight: n1.Weight + n2.Weight, 
             BranchLeft: n1, 
@@ -77,19 +77,19 @@ func buildHuffmanTree(histo []int, maxDepth int) *Node {
         })
     }
 
-    return heap.Pop(nHeap).(*Node)
+    return heap.Pop(nHeap).(*node)
 }
 
-func buildHuffmanCodes(histo []int, maxDepth int) []HuffmanCode {
-    codes := make([]HuffmanCode, len(histo))
+func buildhuffmanCodes(histo []int, maxDepth int) []huffmanCode {
+    codes := make([]huffmanCode, len(histo))
 
     tree := buildHuffmanTree(histo, maxDepth)
     if !tree.IsBranch {
-        codes[tree.Symbol] = HuffmanCode{tree.Symbol, 0, -1}
+        codes[tree.Symbol] = huffmanCode{tree.Symbol, 0, -1}
         return codes
     }
     
-    var symbols []HuffmanCode
+    var symbols []huffmanCode
     setBitDepths(tree, &symbols, 0)
 
     sort.Slice(symbols, func(i, j int) bool {
@@ -115,13 +115,13 @@ func buildHuffmanCodes(histo []int, maxDepth int) []HuffmanCode {
     return codes
 }
 
-func setBitDepths(node *Node, codes *[]HuffmanCode, level int) {
+func setBitDepths(node *node, codes *[]huffmanCode, level int) {
     if node == nil {
         return
     }
 
     if !node.IsBranch {
-        *codes = append(*codes, HuffmanCode{
+        *codes = append(*codes, huffmanCode{
             Symbol: node.Symbol,
             Depth: level,
         })
@@ -133,7 +133,7 @@ func setBitDepths(node *Node, codes *[]HuffmanCode, level int) {
     setBitDepths(node.BranchRight, codes, level + 1)
 }
 
-func writeHuffmanCodes(w *BitWriter, codes []HuffmanCode) {
+func writehuffmanCodes(w *bitWriter, codes []huffmanCode) {
     var symbols [2]int
     
     cnt := 0
@@ -169,11 +169,11 @@ func writeHuffmanCodes(w *BitWriter, codes []HuffmanCode) {
             w.writeBits(uint64(symbols[1]), 8)
         }
     } else {
-        writeFullHuffmanCode(w, codes)
+        writeFullhuffmanCode(w, codes)
     }
 }
 
-func writeFullHuffmanCode(w *BitWriter, codes []HuffmanCode) {
+func writeFullhuffmanCode(w *bitWriter, codes []huffmanCode) {
     histo := make([]int, 19)
     for _, c := range codes {
         histo[c.Depth]++
@@ -194,7 +194,7 @@ func writeFullHuffmanCode(w *BitWriter, codes []HuffmanCode) {
     w.writeBits(0, 1)
     w.writeBits(uint64(cnt - 4), 4)
 
-    lengths := buildHuffmanCodes(histo, 7)
+    lengths := buildhuffmanCodes(histo, 7)
     for i := 0; i < cnt; i++ {
         w.writeBits(uint64(lengths[lengthCodeOrder[i]].Depth), 3)
     }

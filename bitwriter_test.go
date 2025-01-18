@@ -54,7 +54,7 @@ func TestWriteBits(t *testing.T) {
 
             buffer := &bytes.Buffer{}
             buffer.Write(tt.initialBuffer)
-            writer := BitWriter{
+            writer := bitWriter{
                 Buffer:        buffer,
                 BitBuffer:     tt.initialBitBuf,
                 BitBufferSize: tt.initialBufSize,
@@ -83,23 +83,23 @@ func TestwriteCode(t *testing.T) {
         initialBuffer   []byte
         initialBitBuf   uint64
         initialBufSize  int
-        code            HuffmanCode
+        code            huffmanCode
         expectedBuffer  []byte
         expectedBitBuf  uint64
         expectedBufSize int
     }{
-        {nil, 0, 0, HuffmanCode{Bits: 0b101, Depth: 3}, nil, 0b101, 3},                             // Basic 3-bit code
-        {nil, 0, 0, HuffmanCode{Bits: 0b10, Depth: 2}, nil, 0b01, 2},                               // 2-bit code, reversed
-        {nil, 0, 0, HuffmanCode{Bits: 0b1011, Depth: 4}, nil, 0b1101, 4},                           // 4-bit code, reversed
-        {nil, 0b1, 1, HuffmanCode{Bits: 0b10, Depth: 2}, nil, 0b011, 3},                            // Append 2 bits to existing buffer
-        {nil, 0, 0, HuffmanCode{Bits: 0, Depth: 0}, nil, 0, 0},                                     // Zero-Depth: code, no operation
-        {nil, 0b10101010, 8, HuffmanCode{Bits: 0b1111, Depth: 4}, []byte{0b10101010}, 0b1111, 4},   // Flush full byte, 4 bits remaining
-        {nil, 0, 0, HuffmanCode{Bits: 0b10011, Depth: 5}, nil, 0b11001, 5},                         // 5-bit code, reversed
-        {nil, 0, 0, HuffmanCode{Bits: 0b1, Depth: -1}, nil, 0, 0},                                  // Negative Depth:, no operation
+        {nil, 0, 0, huffmanCode{Bits: 0b101, Depth: 3}, nil, 0b101, 3},                             // Basic 3-bit code
+        {nil, 0, 0, huffmanCode{Bits: 0b10, Depth: 2}, nil, 0b01, 2},                               // 2-bit code, reversed
+        {nil, 0, 0, huffmanCode{Bits: 0b1011, Depth: 4}, nil, 0b1101, 4},                           // 4-bit code, reversed
+        {nil, 0b1, 1, huffmanCode{Bits: 0b10, Depth: 2}, nil, 0b011, 3},                            // Append 2 bits to existing buffer
+        {nil, 0, 0, huffmanCode{Bits: 0, Depth: 0}, nil, 0, 0},                                     // Zero-Depth: code, no operation
+        {nil, 0b10101010, 8, huffmanCode{Bits: 0b1111, Depth: 4}, []byte{0b10101010}, 0b1111, 4},   // Flush full byte, 4 bits remaining
+        {nil, 0, 0, huffmanCode{Bits: 0b10011, Depth: 5}, nil, 0b11001, 5},                         // 5-bit code, reversed
+        {nil, 0, 0, huffmanCode{Bits: 0b1, Depth: -1}, nil, 0, 0},                                  // Negative Depth:, no operation
     } {
         buffer := &bytes.Buffer{}
         buffer.Write(tt.initialBuffer)
-        writer := BitWriter{
+        writer := bitWriter{
             Buffer:        buffer,
             BitBuffer:     tt.initialBitBuf,
             BitBufferSize: tt.initialBufSize,
@@ -147,7 +147,7 @@ func TestWriteThrough(t *testing.T) {
     } {
         buffer := &bytes.Buffer{}
         buffer.Write(tt.initialBuffer)
-        writer := BitWriter{
+        writer := bitWriter{
             Buffer:        buffer,
             BitBuffer:     tt.initialBitBuf,
             BitBufferSize: tt.initialBufSize,
@@ -187,7 +187,7 @@ func TestAlignByte(t *testing.T) {
     } {
         buffer := &bytes.Buffer{}
         buffer.Write(tt.initialBuffer)
-        writer := BitWriter{
+        writer := bitWriter{
             Buffer:        buffer,
             BitBuffer:     tt.initialBitBuf,
             BitBufferSize: tt.initialBufSize,

@@ -15,21 +15,21 @@ func TestBuildHuffmanTree(t *testing.T) {
     for id, tt := range []struct {
         histo        []int
         maxDepth    int
-        expectedTree *Node // Expected structure of the Huffman tree
+        expectedTree *node // Expected structure of the Huffman tree
     }{
         // Simple case with 2 symbols
         {
             histo:     []int{5, 10},
             maxDepth: 4,
-            expectedTree: &Node{
+            expectedTree: &node{
                 IsBranch: true,
                 Weight:   15,
-                BranchLeft: &Node{
+                BranchLeft: &node{
                     IsBranch: false,
                     Weight:   5,
                     Symbol:   0,
                 },
-                BranchRight: &Node{
+                BranchRight: &node{
                     IsBranch: false,
                     Weight:   10,
                     Symbol:   1,
@@ -40,32 +40,32 @@ func TestBuildHuffmanTree(t *testing.T) {
         {
             histo:     []int{5, 9, 12, 13},
             maxDepth: 5,
-            expectedTree: &Node{
+            expectedTree: &node{
                 IsBranch: true,
                 Weight:   39,
-                BranchLeft: &Node{
+                BranchLeft: &node{
                     IsBranch: true,
                     Weight:   14,
-                    BranchLeft: &Node{
+                    BranchLeft: &node{
                         IsBranch: false,
                         Weight:   5,
                         Symbol:   0,
                     },
-                    BranchRight: &Node{
+                    BranchRight: &node{
                         IsBranch: false,
                         Weight:   9,
                         Symbol:   1,
                     },
                 },
-                BranchRight: &Node{
+                BranchRight: &node{
                     IsBranch: true,
                     Weight:   25,
-                    BranchLeft: &Node{
+                    BranchLeft: &node{
                         IsBranch: false,
                         Weight:   12,
                         Symbol:   2,
                     },
-                    BranchRight: &Node{
+                    BranchRight: &node{
                         IsBranch: false,
                         Weight:   13,
                         Symbol:   3,
@@ -77,7 +77,7 @@ func TestBuildHuffmanTree(t *testing.T) {
         {
             histo:     []int{}, // Empty histogram
             maxDepth: 4,
-            expectedTree: &Node{
+            expectedTree: &node{
                 IsBranch: false,
                 Weight:   0,
                 Symbol:   0,
@@ -87,7 +87,7 @@ func TestBuildHuffmanTree(t *testing.T) {
         {
             histo:     []int{0, 0, 0},
             maxDepth: 4,
-            expectedTree: &Node{
+            expectedTree: &node{
                 IsBranch: false,
                 Weight:   0,
                 Symbol:   0,
@@ -96,8 +96,8 @@ func TestBuildHuffmanTree(t *testing.T) {
     } {
         resultTree := buildHuffmanTree(tt.histo, tt.maxDepth)
 
-        var compareTrees func(a, b *Node) bool
-        compareTrees = func(a, b *Node) bool {
+        var compareTrees func(a, b *node) bool
+        compareTrees = func(a, b *node) bool {
             if a == nil && b == nil {
                 return true
             }
@@ -116,17 +116,17 @@ func TestBuildHuffmanTree(t *testing.T) {
     }
 }
 
-func TestBuildHuffmanCodes(t *testing.T) {
+func TestBuildhuffmanCodes(t *testing.T) {
     for id, tt := range []struct {
         histo        []int
         maxDepth    int
-        expectedBits map[int]HuffmanCode // Expected results as a map for clarity
+        expectedBits map[int]huffmanCode // Expected results as a map for clarity
     }{
         // Test case with a single symbol
         {
             histo:     []int{10},
             maxDepth: 4,
-            expectedBits: map[int]HuffmanCode{
+            expectedBits: map[int]huffmanCode{
                 0: {Symbol: 0, Bits: 0, Depth: -1}, // Single symbol, no actual code assigned
             },
         },
@@ -134,7 +134,7 @@ func TestBuildHuffmanCodes(t *testing.T) {
         {
             histo:     []int{5, 15},
             maxDepth: 4,
-            expectedBits: map[int]HuffmanCode{
+            expectedBits: map[int]huffmanCode{
                 0: {Symbol: 0, Bits: 0b0, Depth: 1}, // Symbol 0 gets code '0'
                 1: {Symbol: 1, Bits: 0b1, Depth: 1}, // Symbol 1 gets code '1'
             },
@@ -143,7 +143,7 @@ func TestBuildHuffmanCodes(t *testing.T) {
         {
             histo:     []int{5, 9, 12, 13, 1}, // Fifth symbol has lower weight, longer code
             maxDepth: 4,
-            expectedBits: map[int]HuffmanCode{
+            expectedBits: map[int]huffmanCode{
                 0: {Symbol: 0, Bits: 0b110, Depth: 3}, // Symbol 0 gets code '110'
                 1: {Symbol: 1, Bits: 0b0, Depth: 2},   // Symbol 1 gets code '0'
                 2: {Symbol: 2, Bits: 0b1, Depth: 2},   // Symbol 2 gets code '1'
@@ -152,7 +152,7 @@ func TestBuildHuffmanCodes(t *testing.T) {
             },
         },
     } {
-        resultCodes := buildHuffmanCodes(tt.histo, tt.maxDepth)
+        resultCodes := buildhuffmanCodes(tt.histo, tt.maxDepth)
 
         for sym, expectedCode := range tt.expectedBits {
             if sym >= len(resultCodes) {
@@ -171,79 +171,79 @@ func TestBuildHuffmanCodes(t *testing.T) {
 
 func TestSetBitDepths(t *testing.T) {
     for id, tt := range []struct {
-        tree           *Node
-        expectedCodes  []HuffmanCode
+        tree           *node
+        expectedCodes  []huffmanCode
     }{
         // Test case with a nil node
         {
             tree:          nil, // Nil node
-            expectedCodes: []HuffmanCode{}, // No codes generated
+            expectedCodes: []huffmanCode{}, // No codes generated
         },
         // Test case with a single node (no branches)
         {
-            tree: &Node{
+            tree: &node{
                 IsBranch: false,
                 Weight:   5,
                 Symbol:   0,
             },
-            expectedCodes: []HuffmanCode{
+            expectedCodes: []huffmanCode{
                 {Symbol: 0, Depth: 0}, // Root node has depth 0
             },
         },
         // Test case with a simple binary tree
         {
-            tree: &Node{
+            tree: &node{
                 IsBranch: true,
                 Weight:   15,
-                BranchLeft: &Node{
+                BranchLeft: &node{
                     IsBranch: false,
                     Weight:   5,
                     Symbol:   0,
                 },
-                BranchRight: &Node{
+                BranchRight: &node{
                     IsBranch: false,
                     Weight:   10,
                     Symbol:   1,
                 },
             },
-            expectedCodes: []HuffmanCode{
+            expectedCodes: []huffmanCode{
                 {Symbol: 0, Depth: 1}, // Left branch depth = 1
                 {Symbol: 1, Depth: 1}, // Right branch depth = 1
             },
         },
         // Test case with a more complex tree
         {
-            tree: &Node{
+            tree: &node{
                 IsBranch: true,
                 Weight:   30,
-                BranchLeft: &Node{
+                BranchLeft: &node{
                     IsBranch: true,
                     Weight:   15,
-                    BranchLeft: &Node{
+                    BranchLeft: &node{
                         IsBranch: false,
                         Weight:   5,
                         Symbol:   0,
                     },
-                    BranchRight: &Node{
+                    BranchRight: &node{
                         IsBranch: false,
                         Weight:   10,
                         Symbol:   1,
                     },
                 },
-                BranchRight: &Node{
+                BranchRight: &node{
                     IsBranch: false,
                     Weight:   15,
                     Symbol:   2,
                 },
             },
-            expectedCodes: []HuffmanCode{
+            expectedCodes: []huffmanCode{
                 {Symbol: 0, Depth: 2},
                 {Symbol: 1, Depth: 2}, 
                 {Symbol: 2, Depth: 1},
             },
         },
     } {
-        var codes []HuffmanCode
+        var codes []huffmanCode
         setBitDepths(tt.tree, &codes, 0)
 
         if len(codes) != len(tt.expectedCodes) {
@@ -259,23 +259,23 @@ func TestSetBitDepths(t *testing.T) {
     }
 }
 
-func TestWriteHuffmanCodes(t *testing.T) {
+func TestWritehuffmanCodes(t *testing.T) {
     for id, tt := range []struct {
-        codes          []HuffmanCode
+        codes          []huffmanCode
         expectedBits   []byte
         expectedBitBuf uint64
         expectedBufSize int
     }{
         // No codes present
         {
-            codes: []HuffmanCode{},
+            codes: []huffmanCode{},
             expectedBits: []byte{},
             expectedBitBuf: 0b0001,       
             expectedBufSize: 4,
         },
         // Single symbol, symbol[0] <= 1
         {
-            codes: []HuffmanCode{
+            codes: []huffmanCode{
                 {Symbol: 0, Bits: 0, Depth: 1},
             },
             expectedBits: []byte{},       
@@ -284,7 +284,7 @@ func TestWriteHuffmanCodes(t *testing.T) {
         },
         // Single symbol, symbol[0] > 1
         {
-            codes: []HuffmanCode{
+            codes: []huffmanCode{
                 {Symbol: 3, Bits: 0b11, Depth: 1},
             },
             expectedBits: []byte{0b00011101},       
@@ -293,7 +293,7 @@ func TestWriteHuffmanCodes(t *testing.T) {
         },
         // Two symbols, symbol[0] > 1
         {
-            codes: []HuffmanCode{
+            codes: []huffmanCode{
                 {Symbol: 2, Bits: 0b10, Depth: 1},
                 {Symbol: 3, Bits: 0b11, Depth: 1},
             },
@@ -301,9 +301,9 @@ func TestWriteHuffmanCodes(t *testing.T) {
             expectedBitBuf: 0b00,
             expectedBufSize: 3,    
         },
-        // Write full Huffman code (trigger writeFullHuffmanCode)
+        // Write full Huffman code (trigger writeFullhuffmanCode)
         {
-            codes: []HuffmanCode{
+            codes: []huffmanCode{
                 {Symbol: 0, Bits: 0, Depth: 3},
                 {Symbol: 1, Bits: 1, Depth: 3},
                 {Symbol: 2, Bits: 2, Depth: 2},
@@ -314,13 +314,13 @@ func TestWriteHuffmanCodes(t *testing.T) {
         },
     } {
         buffer := &bytes.Buffer{}
-        writer := &BitWriter{
+        writer := &bitWriter{
             Buffer:        buffer,
             BitBuffer:     0,
             BitBufferSize: 0,
         }
 
-        writeHuffmanCodes(writer, tt.codes)
+        writehuffmanCodes(writer, tt.codes)
 
         if !bytes.Equal(buffer.Bytes(), tt.expectedBits) {
             t.Errorf("test %d: buffer mismatch\nexpected: %064b\n     got: %064b\n", id, tt.expectedBits, buffer.Bytes())
