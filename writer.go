@@ -31,6 +31,17 @@ const (
     transformColorIndexing  = transform(3)     
 )
 
+// Encode writes the provided image.Image to the specified io.Writer in WebP VP8L format.
+//
+// This function supports VP8L (lossless WebP) encoding and can handle color-indexed images
+// when img is provided as image.Paletted.
+//
+// Parameters:
+//   w   - The destination writer where the encoded WebP image will be written.
+//   img - The input image to be encoded.
+//
+// Returns:
+//   An error if encoding fails or writing to the io.Writer encounters an issue.
 func Encode(w io.Writer, img image.Image) error {
     if img == nil {
         return errors.New("image is nil")
