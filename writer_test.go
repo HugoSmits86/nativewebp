@@ -271,12 +271,12 @@ func TestWriteBitStreamData(t *testing.T) {
         colorCacheBits  int
         expectedBytes   []byte
     }{
-        {
+        { 
             [4]bool{
-                false, 
-                false, 
-                true, 
-                false,
+                false,  //TransformPredict
+                false,  //TransformColor
+                true,   //TransformSubGreen
+                false,  //TransformColorIndexing
             },
             0,
             []byte{
@@ -304,10 +304,10 @@ func TestWriteBitStreamData(t *testing.T) {
         },
         {
             [4]bool{
-                false, 
-                false, 
-                true, 
-                false,
+                false,  //TransformPredict
+                false,  //TransformColor
+                true,   //TransformSubGreen
+                false,  //TransformColorIndexing
             },
             8,
             []byte{
@@ -341,13 +341,83 @@ func TestWriteBitStreamData(t *testing.T) {
                 0xaf,                 
             },
         },
-
+        { 
+            [4]bool{
+                false,  //TransformPredict
+                true,   //TransformColor
+                false,  //TransformSubGreen
+                false,  //TransformColorIndexing
+            },
+            0,
+            []byte{
+                0x93, 0x0a, 0x64, 0x07, 0xfa, 0x1f, 0x98, 0x7f, 
+                0x01, 0x44, 0xd2, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x60, 0x02, 0x64, 0x9a, 0x76, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xb8, 0x00, 
+                0x82, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x08, 0xc2, 0xb4, 0x6c, 0x62, 0x9c, 0x66, 
+                0x93, 0xb0, 0xad, 0x91, 0x98, 0x27, 0xcb, 0x26, 
+                0xcc, 0x69, 0x26, 0x46, 0xdb, 0x32, 0x89, 0x79, 
+                0x1a, 0x09, 0x82, 0xcb, 0xe3, 0x13, 0xcd, 0x56, 
+                0x9b, 0x4b, 0xf0, 0x79, 0x4d, 0xa2, 0xdd, 0xe2, 
+                0xf1, 0x09, 0x6e, 0xab, 0x4d, 0x34, 0xf9, 0x3c, 
+                0x2e, 0xd1, 0x6e, 0x35,
+            },
+        },
         {
             [4]bool{
-                true, 
-                false,
-                false, 
-                false,
+                false,  //TransformPredict
+                true,   //TransformColor
+                false,  //TransformSubGreen
+                false,  //TransformColorIndexing
+            },
+            8,
+            []byte{
+                0x53, 0xac, 0x40, 0x76, 0xa0, 0xff, 0x21, 0x42, 
+                0x40, 0xb0, 0x6d, 0x06, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x14, 0x00, 0x00, 0x20, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0xe0, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x03, 0x00, 0x00, 0x06, 0x87, 0x03, 
+                0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0xc0, 0x60, 
+                0x00, 0x00, 0x00, 0xc0, 0x01, 0x00, 0x80, 0xc3, 
+                0xe0, 0x00, 0x01, 0x44, 0xd2, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x60, 0x01, 0x44, 0xa2, 
+                0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x60, 
+                0x01, 0x44, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x80, 0xc0, 0x96, 0x8d, 0x6d, 0x94, 
+                0x14, 0xca, 0x9b, 0xa9, 0xc3, 0xef, 0x1a, 0x76, 
+                0x7f, 0xce, 0xd4, 0xe6, 0xf7, 0x01, 0x73, 0x66, 
+                0xe6, 0x91, 0x92, 0x48, 0x3b, 0x37, 0x1f, 0xb1, 
+                0xf2, 0xe2, 0x2b, 0x78, 0x37, 0x9d, 0x58,             
+            },
+        },
+        {
+            [4]bool{
+                true,   //TransformPredict
+                false,  //TransformColor
+                false,  //TransformSubGreen
+                false,  //TransformColorIndexing
             },
             0,
             []byte{
@@ -379,10 +449,10 @@ func TestWriteBitStreamData(t *testing.T) {
         },
         {
             [4]bool{
-                true, 
-                false, 
-                false, 
-                false,
+                true,   //TransformPredict
+                false,  //TransformColor
+                false,  //TransformSubGreen
+                false,  //TransformColorIndexing
             },
             8,
             []byte{
@@ -417,13 +487,12 @@ func TestWriteBitStreamData(t *testing.T) {
                 0xdf, 0x95, 0x3c, 
             },
         },
-
         {
             [4]bool{
-                true, 
-                false, 
-                true, 
-                false,
+                true,   //TransformPredict
+                false,  //TransformColor
+                true,   //TransformSubGreen
+                false,  //TransformColorIndexing
             },
             0,
             []byte{
@@ -456,10 +525,10 @@ func TestWriteBitStreamData(t *testing.T) {
         },
         {
             [4]bool{
-                true, 
-                false, 
-                true, 
-                false,
+                true,   //TransformPredict
+                false,  //TransformColor
+                true,   //TransformSubGreen
+                false,  //TransformColorIndexing
             },
             8,
             []byte{
@@ -496,10 +565,10 @@ func TestWriteBitStreamData(t *testing.T) {
         },
         {   // paletted image
             [4]bool{
-                true, 
-                false, 
-                true, 
-                true,
+                true,   //TransformPredict
+                false,  //TransformColor
+                true,   //TransformSubGreen
+                true,   //TransformColorIndexing
             },
             8,
             []byte{
@@ -561,7 +630,6 @@ func TestWriteBitStreamData(t *testing.T) {
         }
 
         result := b.Bytes()
-
         if !bytes.Equal(result, tt.expectedBytes) {
             t.Errorf("test %v: BitStream mismatch. Got %s, expected %s", id, result, tt.expectedBytes)
         }
@@ -835,48 +903,6 @@ func TestFlatten(t *testing.T) {
     }
 }
 
-func TestApplySubtractGreenTransform(t *testing.T) {
-    for id, tt := range []struct {
-        inputPixels    []color.NRGBA
-        expectedPixels []color.NRGBA
-    }{
-        {
-            inputPixels: []color.NRGBA{
-                {R: 100, G: 50, B: 150},
-            },
-            expectedPixels: []color.NRGBA{
-                {R: 50, G: 50, B: 100},
-            },
-        },
-        {
-            inputPixels: []color.NRGBA{
-                {R: 200, G: 200, B: 150},
-            },
-            expectedPixels: []color.NRGBA{
-                {R: 0, G: 200, B: 206},
-            },
-        },
-        {
-            inputPixels: []color.NRGBA{
-                {R: 0, G: 128, B: 150},
-            },
-            expectedPixels: []color.NRGBA{
-                {R: 128, G: 128, B: 22},
-            },
-        },
-    }{
-        pixels := make([]color.NRGBA, len(tt.inputPixels))
-        copy(pixels, tt.inputPixels)
-
-        applySubtractGreenTransform(pixels)
-
-        if !reflect.DeepEqual(pixels, tt.expectedPixels) {
-            t.Errorf("test %d: pixel mismatch\nexpected: %+v\n     got: %+v", id, tt.expectedPixels, pixels)
-            continue
-        }
-    }
-}
-
 func TestApplyPredictTransform(t *testing.T) {
     for id, tt := range []struct {
         width           int
@@ -992,6 +1018,123 @@ func TestApplyFilter(t *testing.T) {
 
         if !reflect.DeepEqual(got, tt.expected) {
             t.Errorf("test %d: mismatch\nexpected: %+v\n     got: %+v", id, tt.expected, got)
+        }
+    }
+}
+
+func TestApplyColorTransform(t *testing.T) {
+    for id, tt := range []struct {
+        width          int
+        height         int
+        expectedHash   string
+        expectedBlocks []color.NRGBA
+        expectedBit    int
+    }{
+        {   // default case
+            32,
+            32,
+            "7d2e490f816b7abe5f0f3dde85435a95da2a4295636cbc338689739fb1d936aa",
+            []color.NRGBA{
+                {1, 2, 3, 255},
+                {1, 2, 3, 255},
+                {1, 2, 3, 255},
+                {1, 2, 3, 255},
+            },
+            4,
+        },
+        {   // non-power-of-2 dimensions
+            33,
+            33,
+            "be8a424305cc8e044a6fbb16c2d3a14c2ece1fd2733d41f6f9b452790c22ccb8",
+            []color.NRGBA{
+                {1, 2, 3, 255},
+                {1, 2, 3, 255},
+                {1, 2, 3, 255},
+                {1, 2, 3, 255},
+                {1, 2, 3, 255},
+                {1, 2, 3, 255},
+                {1, 2, 3, 255},
+                {1, 2, 3, 255},
+                {1, 2, 3, 255},
+            },
+            4,
+        },
+    } {
+        img := generateTestImageNRGBA(tt.width, tt.height, 128, true)
+        pixels, err := flatten(img)
+        if err != nil {
+            t.Errorf("test %v: unexpected error %v", id, err)
+            continue
+        }
+
+        tileBit, blocks := applyColorTransform(pixels, tt.width, tt.height)
+
+        if !reflect.DeepEqual(blocks, tt.expectedBlocks) {
+            t.Errorf("test %v: expected blocks as %v got %v", id, tt.expectedBlocks, blocks)
+            continue
+        }
+
+        if tileBit != tt.expectedBit {
+            t.Errorf("test %v: expected tile bit as %v got %v", id, tt.expectedBit, tileBit)
+            continue
+        }
+
+        data := make([]byte, len(pixels)*4)
+        for j := 0; j < len(pixels); j++ {
+            data[j*4+0] = byte(pixels[j].R)
+            data[j*4+1] = byte(pixels[j].G)
+            data[j*4+2] = byte(pixels[j].B)
+            data[j*4+3] = byte(pixels[j].A)
+        }
+
+        hash := sha256.Sum256(data)
+        hashString := hex.EncodeToString(hash[:])
+
+        if hashString != tt.expectedHash {
+            t.Errorf("test %v: expected hash as %v got %v", id, tt.expectedHash, hashString)
+            continue
+        }
+    }
+}
+
+func TestApplySubtractGreenTransform(t *testing.T) {
+    for id, tt := range []struct {
+        inputPixels    []color.NRGBA
+        expectedPixels []color.NRGBA
+    }{
+        {
+            inputPixels: []color.NRGBA{
+                {R: 100, G: 50, B: 150},
+            },
+            expectedPixels: []color.NRGBA{
+                {R: 50, G: 50, B: 100},
+            },
+        },
+        {
+            inputPixels: []color.NRGBA{
+                {R: 200, G: 200, B: 150},
+            },
+            expectedPixels: []color.NRGBA{
+                {R: 0, G: 200, B: 206},
+            },
+        },
+        {
+            inputPixels: []color.NRGBA{
+                {R: 0, G: 128, B: 150},
+            },
+            expectedPixels: []color.NRGBA{
+                {R: 128, G: 128, B: 22},
+            },
+        },
+    }{
+        pixels := make([]color.NRGBA, len(tt.inputPixels))
+        copy(pixels, tt.inputPixels)
+
+        applySubtractGreenTransform(pixels)
+
+        if !reflect.DeepEqual(pixels, tt.expectedPixels) {
+            t.Errorf("test %d: pixel mismatch\nexpected: %+v\n     got: %+v", id, tt.expectedPixels, pixels)
+            continue
         }
     }
 }

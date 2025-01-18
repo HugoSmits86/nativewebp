@@ -26,6 +26,7 @@ type Transform int
 
 const (
     TransformPredict        = Transform(0)
+    TransformColor          = Transform(1)
     TransformSubGreen       = Transform(2)
     TransformColorIndexing  = Transform(3)     
 )
@@ -51,6 +52,7 @@ func Encode(w io.Writer, img image.Image) error {
 
     var transforms [4]bool
     transforms[TransformPredict] = !isIndexed
+    transforms[TransformColor] = false
     transforms[TransformSubGreen] = !isIndexed
     transforms[TransformColorIndexing] = isIndexed
 
@@ -127,6 +129,16 @@ func writeBitStreamData(w *BitWriter, img image.Image, colorCacheBits int, trans
         w.writeBits(2, 2)
 
         applySubtractGreenTransform(pixels)
+    }
+
+    if transforms[TransformColor] {
+        w.writeBits(1, 1)
+        w.writeBits(1, 2)
+
+        bits, blocks := applyColorTransform(pixels, img.Bounds().Dx(), img.Bounds().Dy())
+
+        w.writeBits(uint64(bits - 2), 3);
+        writeImageData(w, blocks, false, colorCacheBits)
     }
 
     if transforms[TransformPredict] {
@@ -262,13 +274,6 @@ func flatten(img image.Image) ([]color.NRGBA, error) {
     return pixels, nil
 }
 
-func applySubtractGreenTransform(pixels []color.NRGBA) {
-    for i, _ := range pixels {
-        pixels[i].R = pixels[i].R - pixels[i].G
-        pixels[i].B = pixels[i].B - pixels[i].G
-    }
-}
-
 func applyPredictTransform(pixels []color.NRGBA, width, height int) (int, []color.NRGBA) {
     tileBits := 4
     tileSize := 1 << tileBits
@@ -278,6 +283,7 @@ func applyPredictTransform(pixels []color.NRGBA, width, height int) (int, []colo
     blocks := make([]color.NRGBA, bw * bh)
     deltas := make([]color.NRGBA, width * height)
     
+    //TODO: analyze block and pick best filter
     best := 1
     for y := 0; y < bh; y++ {
         for x := 0; x < bw; x++ {
@@ -394,6 +400,63 @@ func applyFilter(pixels []color.NRGBA, width, x, y, prediction int) color.NRGBA 
     }
     
     return filters[prediction](t, l, tl, tr)
+}
+
+func applyColorTransform(pixels []color.NRGBA, width, height int) (int, []color.NRGBA) {
+    tileBits := 4
+    tileSize := 1 << tileBits
+    bw := (width + tileSize - 1) / tileSize
+    bh := (height + tileSize - 1) / tileSize
+
+    blocks := make([]color.NRGBA, bw * bh)
+    deltas := make([]color.NRGBA, width * height)
+    
+    //TODO: analyze block and pick best Color Transform Element (CTE)
+    cte := color.NRGBA {
+        R: 1,   //red to blue
+        G: 2,   //green to blue
+        B: 3,   //green to red
+        A: 255,
+    }
+    
+    for y := 0; y < bh; y++ {
+        for x := 0; x < bw; x++ {
+            mx := min((x + 1) << tileBits, width)
+            my := min((y + 1) << tileBits, height)
+
+            for tx := x << tileBits; tx < mx; tx++ {
+                for ty := y << tileBits; ty < my; ty++ {
+                    off := ty * width + tx
+
+                    r := int(int8(pixels[off].R))
+                    g := int(int8(pixels[off].G))
+                    b := int(int8(pixels[off].B))
+                
+                    b -= int(int8((int16(int8(cte.G)) * int16(g)) >> 5))
+                    b -= int(int8((int16(int8(cte.R)) * int16(r)) >> 5))
+                    r -= int(int8((int16(int8(cte.B)) * int16(g)) >> 5))
+                    
+                    pixels[off].R = uint8(r & 0xff)
+                    pixels[off].B = uint8(b & 0xff)
+
+                    deltas[off] = pixels[off]
+                }
+            }
+
+            blocks[y * bw + x] = cte
+        }
+    }
+    
+    copy(pixels, deltas)
+    
+    return tileBits, blocks
+}
+
+func applySubtractGreenTransform(pixels []color.NRGBA) {
+    for i, _ := range pixels {
+        pixels[i].R = pixels[i].R - pixels[i].G
+        pixels[i].B = pixels[i].B - pixels[i].G
+    }
 }
 
 func applyPaletteTransform(pixels []color.NRGBA) ([]color.NRGBA, error) {
