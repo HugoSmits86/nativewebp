@@ -156,7 +156,7 @@ func TestWriteEncodeErrors(t *testing.T) {
     }{
         b := &bytes.Buffer{}
 
-        err := Encode(b, tt.img)
+        err := Encode(b, tt.img, nil)
         if err == nil {
             t.Errorf("test %v: expected error %v got nil", id, tt.expectedMsg)
             continue
@@ -210,7 +210,7 @@ func TestEncode(t *testing.T) {
         },
     }{
         b := &bytes.Buffer{}
-        Encode(b, tt.img)
+        Encode(b, tt.img, nil)
 
         result := b.Bytes()
 
