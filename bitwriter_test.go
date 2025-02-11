@@ -38,6 +38,7 @@ func TestWriteBits(t *testing.T) {
         // Invalid cases (expect panic)
         {nil, 0, 0, 0b101, 0, nil, 0, 0, true},                                                 // Bit count is 0
         {nil, 0, 0, 0b101, 65, nil, 0, 0, true},                                                // Bit count exceeds 64
+        {nil, 0, 0, 0b101, -1, nil, 0, 0, true},                                                // Bit count exceeds 64
         {nil, 0, 0, 0b101, 2, nil, 0, 0, true},                                                 // Value too large for bit count
     } {
         // Use defer to catch panics

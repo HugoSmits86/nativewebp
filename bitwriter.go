@@ -14,7 +14,7 @@ type bitWriter struct {
 }
 
 func (w *bitWriter) writeBits(value uint64, n int) {
-    if n <= 0 || n > 64 {
+    if n < 0 || n > 64 {
         panic("Invalid bit count: must be between 1 and 64")
     }
 
