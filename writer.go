@@ -18,8 +18,12 @@ import (
     //------------------------------
     //"log"
     "errors"
+    wp "golang.org/x/image/webp"
 )
-
+// registers the webp decoder so image.Decode can detect and use it.
+func init() {
+	image.RegisterFormat("webp", "RIFF", Decode, DecodeConfig)
+}
 // Options holds future configuration settings (e.g., compression levels)
 type Options struct {
 }
@@ -79,6 +83,14 @@ func Encode(w io.Writer, img image.Image, o *Options) error {
     w.Write(data)
 
     return nil
+}
+
+func Decode(r io.Reader) (image.Image, error) {
+	return wp.Decode(r)
+}
+
+func DecodeConfig(r io.Reader) (image.Config, error) {
+	return wp.DecodeConfig(r)
 }
 
 func writeWebPHeader(w io.Writer, b *bytes.Buffer) {
