@@ -18,14 +18,45 @@ import (
     //------------------------------
     //"log"
     "errors"
-    wp "golang.org/x/image/webp"
+    decoderWebP "golang.org/x/image/webp"
 )
+
+// Options holds future configuration settings (e.g., compression levels)
+type Options struct {
+}
+
 // registers the webp decoder so image.Decode can detect and use it.
 func init() {
 	image.RegisterFormat("webp", "RIFF", Decode, DecodeConfig)
 }
-// Options holds future configuration settings (e.g., compression levels)
-type Options struct {
+
+// Decode reads a WebP image from the provided io.Reader and returns it as an image.Image.
+//
+// This function is a wrapper around the underlying WebP decode package (golang.org/x/image/webp).
+// It supports both lossy and lossless WebP formats, decoding the image accordingly.
+//
+// Parameters:
+//   r - The source io.Reader containing the WebP encoded image.
+//
+// Returns:
+//   The decoded image as image.Image or an error if the decoding fails.
+func Decode(r io.Reader) (image.Image, error) {
+	return decoderWebP.Decode(r)
+}
+
+// DecodeConfig reads the image configuration from the provided io.Reader without fully decoding the image.
+//
+// This function is a wrapper around the underlying WebP decode package (golang.org/x/image/webp) and
+// provides access to the image's metadata, such as its dimensions and color model.
+// It is useful for obtaining image information before performing a full decode.
+//
+// Parameters:
+//   r - The source io.Reader containing the WebP encoded image.
+//
+// Returns:
+//   An image.Config containing the image's dimensions and color model, or an error if the configuration cannot be retrieved
+func DecodeConfig(r io.Reader) (image.Config, error) {
+	return decoderWebP.DecodeConfig(r)
 }
 
 // Encode writes the provided image.Image to the specified io.Writer in WebP VP8L format.
@@ -83,14 +114,6 @@ func Encode(w io.Writer, img image.Image, o *Options) error {
     w.Write(data)
 
     return nil
-}
-
-func Decode(r io.Reader) (image.Image, error) {
-	return wp.Decode(r)
-}
-
-func DecodeConfig(r io.Reader) (image.Config, error) {
-	return wp.DecodeConfig(r)
 }
 
 func writeWebPHeader(w io.Writer, b *bytes.Buffer) {
