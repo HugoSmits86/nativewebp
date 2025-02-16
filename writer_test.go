@@ -11,6 +11,7 @@ import (
     //------------------------------
     "image"
     "image/color"
+    "image/draw"
     //------------------------------
     //testing
     //------------------------------
@@ -45,6 +46,29 @@ func generateTestImageNRGBA(width int, height int, brightness float64, hasAlpha 
         }
     }
     return dest
+}
+
+func toNRGBA(img image.Image) *image.NRGBA {
+	b := img.Bounds()
+	nrgba := image.NewNRGBA(b)
+	draw.Draw(nrgba, b, img, b.Min, draw.Src)
+	return nrgba
+}
+
+func imagesEqual(a, b image.Image) bool {
+	na := toNRGBA(a)
+	nb := toNRGBA(b)
+	if !na.Rect.Eq(nb.Rect) {
+		return false
+	}
+	for y := na.Rect.Min.Y; y < na.Rect.Max.Y; y++ {
+		for x := na.Rect.Min.X; x < na.Rect.Max.X; x++ {
+			if na.NRGBAAt(x, y) != nb.NRGBAAt(x, y) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func TestWriteWebPHeader(t *testing.T) {
@@ -1124,4 +1148,70 @@ func TestFlatten(t *testing.T) {
             }
         }
     }
+}
+
+func TestDecode(t *testing.T) {
+	orig := generateTestImageNRGBA(16, 16, 1.0, true)
+
+	buf := new(bytes.Buffer)
+	if err := Encode(buf, orig, nil); err != nil {
+		t.Fatalf("Encode failed: %v", err)
+	}
+
+	decoded, err := Decode(buf)
+	if err != nil {
+		t.Fatalf("Decode failed: %v", err)
+	}
+
+	if !imagesEqual(orig, decoded) {
+		t.Errorf("Decoded image does not match the original")
+	}
+}
+
+func TestDecodeConfig(t *testing.T) {
+	orig := generateTestImageNRGBA(20, 10, 1.0, false)
+	buf := new(bytes.Buffer)
+	if err := Encode(buf, orig, nil); err != nil {
+		t.Fatalf("Encode failed: %v", err)
+	}
+
+	cfg, err := DecodeConfig(buf)
+	if err != nil {
+		t.Fatalf("DecodeConfig failed: %v", err)
+	}
+
+	expectedWidth := orig.Bounds().Dx()
+	expectedHeight := orig.Bounds().Dy()
+	if cfg.Width != expectedWidth || cfg.Height != expectedHeight {
+		t.Errorf("Expected dimensions %dx%d, got %dx%d", expectedWidth, expectedHeight, cfg.Width, cfg.Height)
+	}
+}
+
+func TestDecodeInvalidData(t *testing.T) {
+	invalidData := []byte("invalid WebP data")
+	buf := bytes.NewBuffer(invalidData)
+	_, err := Decode(buf)
+	if err == nil {
+		t.Error("Expected error when decoding invalid data, but got nil")
+	}
+}
+
+// verifies that our registered WebP decoder is used by image.Decode from the standard library out of the box.
+func TestImageDecodeRegistration(t *testing.T) {
+	orig := generateTestImageNRGBA(10, 10, 1.0, true)
+	buf := new(bytes.Buffer)
+	if err := Encode(buf, orig, nil); err != nil {
+		t.Fatalf("Encode failed: %v", err)
+	}
+
+	img, format, err := image.Decode(buf)
+	if err != nil {
+		t.Fatalf("image.Decode failed: %v", err)
+	}
+	if format != "webp" {
+    t.Errorf("Expected format 'webp', got '%s'", format)
+	}
+	if !imagesEqual(orig, img) {
+		t.Errorf("Decoded image via image.Decode does not match original")
+	}
 }
