@@ -211,22 +211,49 @@ func applySubtractGreenTransform(pixels []color.NRGBA) {
     }
 }
 
-func applyPaletteTransform(pixels []color.NRGBA) ([]color.NRGBA, error) {
+func applyPaletteTransform(pixels *[]color.NRGBA, width, height int) ([]color.NRGBA, int, error) {
     var pal []color.NRGBA
-    for _, p := range pixels {
+    for _, p := range (*pixels) {
         if !slices.Contains(pal, p) {
             pal = append(pal, p)
         }
    
         if len(pal) > 256 {
-            return nil, errors.New("palette exceeds 256 colors")
+            return nil, 0, errors.New("palette exceeds 256 colors")
         }
     }
-   
-    for i, p := range pixels {
-        pixels[i] = color.NRGBA{G: uint8(slices.Index(pal, p)), A: 255}
+
+    size := 1
+    if len(pal) <= 2 {
+        size = 8
+    } else if len(pal) <= 4 {
+        size = 4
+    } else if len(pal) <= 16 {
+        size = 2
     }
-   
+    
+    pw := (width + size - 1) / size
+
+    packed := make([]color.NRGBA, pw * height)
+    for y := 0; y < height; y++ {
+        for x := 0; x < pw; x++ {
+            pack := 0
+            for i := 0; i < size; i++ {
+                px := x * size + i
+                if px >= width {
+                    break
+                }
+
+                idx := slices.Index(pal, (*pixels)[y * width + px])
+                pack |= int(idx) << (i * (8 / size))
+            }
+
+            packed[y * pw + x] = color.NRGBA{G: uint8(pack), A: 255}
+        }
+    }
+
+    *pixels = packed
+    
     for i := len(pal) - 1; i > 0; i-- {
         pal[i] = color.NRGBA{
             R: pal[i].R - pal[i - 1].R,
@@ -235,6 +262,6 @@ func applyPaletteTransform(pixels []color.NRGBA) ([]color.NRGBA, error) {
             A: pal[i].A - pal[i - 1].A,
         }
     }
-   
-    return pal, nil
+
+    return pal, pw, nil
 }

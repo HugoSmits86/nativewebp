@@ -285,7 +285,7 @@ func TestApplySubtractGreenTransform(t *testing.T) {
     }
 }
 
-func TestApplyPaletteTransformWithManualPixels(t *testing.T) {
+func TestApplyPaletteTransform(t *testing.T) {
     //check for too many colors error
     pixels := make([]color.NRGBA, 257)
     for i := 0; i < 257; i++ {
@@ -297,7 +297,7 @@ func TestApplyPaletteTransformWithManualPixels(t *testing.T) {
         }
     }
 
-    _, err := applyPaletteTransform(pixels)
+    _, _, err := applyPaletteTransform(&pixels, 4, 4)
 
     msg := "palette exceeds 256 colors"
     if err == nil || err.Error() != msg {
@@ -305,41 +305,154 @@ func TestApplyPaletteTransformWithManualPixels(t *testing.T) {
     }
 
     for id, tt := range []struct {
-        pixels     []color.NRGBA
+        width           int
+        height          int
+        pixels          []color.NRGBA
         expectedPalette []color.NRGBA
         expectedPixels  []color.NRGBA
+        expectedWidth   int
     }{
         {
+            //2 color pal - pack size = 8
+            width: 3,
+            height: 2,
+            pixels: []color.NRGBA{
+                {R: 255, G: 0, B: 0, A: 255}, 
+                {R: 0, G: 255, B: 0, A: 255}, 
+                {R: 255, G: 0, B: 0, A: 255}, 
+                {R: 0, G: 255, B: 0, A: 255}, 
+                {R: 255, G: 0, B: 0, A: 255}, 
+                {R: 0, G: 255, B: 0, A: 255}, 
+            },
+            expectedPalette: []color.NRGBA{
+                {R: 255, G: 0, B: 0, A: 255},
+                {R: 1, G: 255, B: 0, A: 0},
+            },
+            expectedPixels: []color.NRGBA{
+                {R: 0, G: 2, B: 0, A: 255}, 
+                {R: 0, G: 5, B: 0, A: 255}, 
+            },
+            expectedWidth: 1,
+        },
+        {
+            //4 color pal - pack size = 4
+            width: 3,
+            height: 2,
             pixels: []color.NRGBA{
                 {R: 255, G: 0, B: 0, A: 255}, 
                 {R: 0, G: 255, B: 0, A: 255}, 
                 {R: 0, G: 0, B: 255, A: 255}, 
-                {R: 255, G: 255, B: 0, A: 255},
-                {R: 255, G: 0, B: 0, A: 255},  // repeat color 1
+                {R: 255, G: 255, B: 0, A: 255}, 
+                {R: 255, G: 0, B: 0, A: 255}, 
+                {R: 0, G: 255, B: 0, A: 255}, 
             },
             expectedPalette: []color.NRGBA{
                 {R: 255, G: 0, B: 0, A: 255},
                 {R: 1, G: 255, B: 0, A: 0},
                 {R: 0, G: 1, B: 255, A: 0},
                 {R: 255, G: 255, B: 1, A: 0},
+
             },
             expectedPixels: []color.NRGBA{
-                {R: 0, G: 0, B:0, A: 255}, 
-                {R: 0, G: 1, B:0, A: 255},  
-                {R: 0, G: 2, B:0, A: 255}, 
-                {R: 0, G: 3, B:0, A: 255}, 
-                {R: 0, G: 0, B:0, A: 255}, 
+                {R: 0, G: 36, B: 0, A: 255}, 
+                {R: 0, G: 19, B: 0, A: 255}, 
             },
+            expectedWidth: 1,
+        },
+        {
+            //5 color pal - pack size = 2
+            width: 3,
+            height: 2,
+            pixels: []color.NRGBA{
+                {R: 255, G: 0, B: 0, A: 255}, 
+                {R: 0, G: 255, B: 0, A: 255}, 
+                {R: 0, G: 0, B: 255, A: 255}, 
+                {R: 255, G: 255, B: 0, A: 255}, 
+                {R: 255, G: 0, B: 255, A: 255}, 
+                {R: 0, G: 255, B: 0, A: 255}, 
+            },
+            expectedPalette: []color.NRGBA{
+                {R: 255, G: 0, B: 0, A: 255},
+                {R: 1, G: 255, B: 0, A: 0},
+                {R: 0, G: 1, B: 255, A: 0},
+                {R: 255, G: 255, B: 1, A: 0},
+                {R: 0, G: 1, B: 255, A: 0},
+            },
+            expectedPixels: []color.NRGBA{
+                {R: 0, G: 16, B: 0, A: 255}, 
+                {R: 0, G: 2, B: 0, A: 255}, 
+                {R: 0, G: 67, B: 0, A: 255}, 
+                {R: 0, G: 1, B: 0, A: 255},
+            },
+            expectedWidth: 2,
+        },
+        {
+            // 16 color palette - pack size = 1
+            width: 4,
+            height: 5,
+            pixels: []color.NRGBA{
+                {R: 255, G: 0, B: 0, A: 255},   {R: 0, G: 255, B: 0, A: 255},   {R: 0, G: 0, B: 255, A: 255},   {R: 255, G: 255, B: 0, A: 255},  
+                {R: 255, G: 0, B: 255, A: 255}, {R: 0, G: 255, B: 255, A: 255}, {R: 128, G: 128, B: 128, A: 255}, {R: 255, G: 128, B: 0, A: 255},
+                {R: 128, G: 0, B: 255, A: 255}, {R: 255, G: 128, B: 128, A: 255}, {R: 0, G: 128, B: 128, A: 255}, {R: 128, G: 255, B: 0, A: 255}, 
+                {R: 128, G: 0, B: 128, A: 255}, {R: 0, G: 128, B: 0, A: 255}, {R: 255, G: 255, B: 255, A: 255}, {R: 0, G: 0, B: 0, A: 255},
+                {R: 128, G: 0, B: 128, A: 255}, {R: 0, G: 128, B: 0, A: 255}, {R: 255, G: 255, B: 255, A: 255}, {R: 0, G: 13, B: 37, A: 255},
+            },
+            expectedPalette: []color.NRGBA{
+                {R: 255, G: 0, B: 0, A: 255},  
+                {R: 1, G: 255, B: 0, A: 0},  
+                {R: 0, G: 1, B: 255, A: 0},  
+                {R: 255, G: 255, B: 1, A: 0},  
+                {R: 0, G: 1, B: 255, A: 0},  
+                {R: 1, G: 255, B: 0, A: 0},  
+                {R: 128, G: 129, B: 129, A: 0},  
+                {R: 127, G: 0, B: 128, A: 0},  
+                {R: 129, G: 128, B: 255, A: 0},  
+                {R: 127, G: 128, B: 129, A: 0},  
+                {R: 1, G: 0, B: 0, A: 0},  
+                {R: 128, G: 127, B: 128, A: 0},  
+                {R: 0, G: 1, B: 128, A: 0},  
+                {R: 128, G: 128, B: 128, A: 0},  
+                {R: 255, G: 127, B: 255, A: 0},  
+                {R: 1, G: 1, B: 1, A: 0},  
+                {R: 0, G: 13, B: 37, A: 0},
+            },
+            expectedPixels: []color.NRGBA{
+                {R: 0, G: 0, B: 0, A: 255},  
+                {R: 0, G: 1, B: 0, A: 255},  
+                {R: 0, G: 2, B: 0, A: 255},  
+                {R: 0, G: 3, B: 0, A: 255},  
+                {R: 0, G: 4, B: 0, A: 255},  
+                {R: 0, G: 5, B: 0, A: 255},  
+                {R: 0, G: 6, B: 0, A: 255},  
+                {R: 0, G: 7, B: 0, A: 255},  
+                {R: 0, G: 8, B: 0, A: 255},  
+                {R: 0, G: 9, B: 0, A: 255},  
+                {R: 0, G: 10, B: 0, A: 255},  
+                {R: 0, G: 11, B: 0, A: 255},  
+                {R: 0, G: 12, B: 0, A: 255},  
+                {R: 0, G: 13, B: 0, A: 255},  
+                {R: 0, G: 14, B: 0, A: 255},  
+                {R: 0, G: 15, B: 0, A: 255},  
+                {R: 0, G: 12, B: 0, A: 255},  
+                {R: 0, G: 13, B: 0, A: 255},  
+                {R: 0, G: 14, B: 0, A: 255},  
+                {R: 0, G: 16, B: 0, A: 255}, 
+            },
+            expectedWidth: 4,
         },
     } {
         // Copy inputPixels to avoid modifying the test case
         pixels := make([]color.NRGBA, len(tt.pixels))
         copy(pixels, tt.pixels)
 
-        pal, err := applyPaletteTransform(pixels)
-
+        pal, pw, err := applyPaletteTransform(&pixels, tt.width, tt.height)
         if err != nil {
             t.Errorf("test %d: unexpected error %v", id, err)
+            continue
+        }
+
+        if pw != tt.expectedWidth {
+            t.Errorf("test %d: expected width %v got %v", id, tt.expectedWidth, pw)
             continue
         }
 

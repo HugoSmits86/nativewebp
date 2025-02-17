@@ -27,7 +27,7 @@ type Options struct {
 
 // registers the webp decoder so image.Decode can detect and use it.
 func init() {
-	image.RegisterFormat("webp", "RIFF", Decode, DecodeConfig)
+    image.RegisterFormat("webp", "RIFF", Decode, DecodeConfig)
 }
 
 // Decode reads a WebP image from the provided io.Reader and returns it as an image.Image.
@@ -41,7 +41,7 @@ func init() {
 // Returns:
 //   The decoded image as image.Image or an error if the decoding fails.
 func Decode(r io.Reader) (image.Image, error) {
-	return decoderWebP.Decode(r)
+    return decoderWebP.Decode(r)
 }
 
 // DecodeConfig reads the image configuration from the provided io.Reader without fully decoding the image.
@@ -56,7 +56,7 @@ func Decode(r io.Reader) (image.Image, error) {
 // Returns:
 //   An image.Config containing the image's dimensions and color model, or an error if the configuration cannot be retrieved
 func DecodeConfig(r io.Reader) (image.Config, error) {
-	return decoderWebP.DecodeConfig(r)
+    return decoderWebP.DecodeConfig(r)
 }
 
 // Encode writes the provided image.Image to the specified io.Writer in WebP VP8L format.
@@ -152,14 +152,19 @@ func writeBitStreamData(w *bitWriter, img image.Image, colorCacheBits int, trans
         return err
     }
 
+    width := img.Bounds().Dx()
+    height := img.Bounds().Dy()
+
     if transforms[transformColorIndexing] {
         w.writeBits(1, 1)
         w.writeBits(3, 2)
        
-        pal, err := applyPaletteTransform(pixels)
+        pal, pw, err := applyPaletteTransform(&pixels, width, height)
         if err != nil {
             return err
         }
+
+        width = pw
        
         w.writeBits(uint64(len(pal) - 1), 8);
         writeImageData(w, pal, len(pal), 1, false, colorCacheBits);
@@ -176,7 +181,7 @@ func writeBitStreamData(w *bitWriter, img image.Image, colorCacheBits int, trans
         w.writeBits(1, 1)
         w.writeBits(1, 2)
 
-        bits, bw, bh, blocks := applyColorTransform(pixels, img.Bounds().Dx(), img.Bounds().Dy())
+        bits, bw, bh, blocks := applyColorTransform(pixels, width, height)
 
         w.writeBits(uint64(bits - 2), 3);
         writeImageData(w, blocks, bw, bh, false, colorCacheBits)
@@ -186,14 +191,14 @@ func writeBitStreamData(w *bitWriter, img image.Image, colorCacheBits int, trans
         w.writeBits(1, 1)
         w.writeBits(0, 2)
 
-        bits, bw, bh, blocks := applyPredictTransform(pixels, img.Bounds().Dx(), img.Bounds().Dy())
+        bits, bw, bh, blocks := applyPredictTransform(pixels, width, height)
 
         w.writeBits(uint64(bits - 2), 3);
         writeImageData(w, blocks, bw, bh, false, colorCacheBits)
     }
 
     w.writeBits(0, 1) // end of transform
-    writeImageData(w, pixels, img.Bounds().Dx(), img.Bounds().Dy(), true, colorCacheBits)
+    writeImageData(w, pixels, width, height, true, colorCacheBits)
 
     return nil
 }
@@ -249,7 +254,7 @@ func encodeImageData(pixels []color.NRGBA, width, height, colorCacheBits int) []
     encoded := make([]int, len(pixels) * 4)
     cnt := 0
 
-    var codes = []int {
+    var distances = []int {
         96,   73,  55,  39,  23,  13,   5,  1,  255, 255, 255, 255, 255, 255, 255, 255,
         101,  78,  58,  42,  26,  16,   8,  2,    0,   3,  9,   17,  27,  43,  59,  79,
         102,  86,  62,  46,  32,  20,  10,  6,    4,   7,  11,  21,  33,  47,  63,  87,
@@ -309,9 +314,9 @@ func encodeImageData(pixels []color.NRGBA, width, height, colorCacheBits int) []
             
                 code := dis + 120
                 if x <= 8 && y < 8 {
-                    code = codes[y * 16 + 8 - x] + 1
+                    code = distances[y * 16 + 8 - x] + 1
                 } else if x > width - 8 && y < 7 {
-                    code = codes[(y + 1) * 16 + 8 + (width - x)] + 1
+                    code = distances[(y + 1) * 16 + 8 + (width - x)] + 1
                 }
 
                 s, l := prefixEncodeCode(streak)
