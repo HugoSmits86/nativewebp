@@ -220,7 +220,8 @@ func writeImageData(w *bitWriter, pixels []color.NRGBA, width, height int, isRec
 
     var codes [][]huffmanCode
     for i := 0; i < 5; i++ {
-        c := buildhuffmanCodes(histos[i], 16)
+        // WebP specs requires Huffman codes with maximum depth of 15
+        c := buildhuffmanCodes(histos[i], 15)
         codes = append(codes, c)
 
         writehuffmanCodes(w, c)
