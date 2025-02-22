@@ -35,12 +35,65 @@ func applyPredictTransform(pixels []color.NRGBA, width, height int) (int, int, i
     blocks := make([]color.NRGBA, bw * bh)
     deltas := make([]color.NRGBA, width * height)
     
-    //TODO: analyze block and pick best filter
-    best := 1
+    accum := [][]int{
+        make([]int, 256),
+        make([]int, 256),
+        make([]int, 256),
+        make([]int, 256),
+        make([]int, 40),
+    }
+
+    histos := make([][]int, len(accum))
+    for i := range accum {
+        histos[i] = make([]int, len(accum[i]))
+    }
+
     for y := 0; y < bh; y++ {
         for x := 0; x < bw; x++ {
             mx := min((x + 1) << tileBits, width)
             my := min((y + 1) << tileBits, height)
+
+            var best int
+            var bestEntropy float64
+            for i := 0; i < 14; i++ {
+                for j := range accum {
+                    copy(histos[j], accum[j])
+                }
+
+                for tx := x << tileBits; tx < mx; tx++ {
+                    for ty := y << tileBits; ty < my; ty++ {
+                        d := applyFilter(pixels, width, tx, ty, i)
+
+                        off := ty * width + tx
+                        histos[0][int(uint8(pixels[off].R - d.R))]++
+                        histos[1][int(uint8(pixels[off].G - d.G))]++
+                        histos[2][int(uint8(pixels[off].B - d.B))]++
+                        histos[3][int(uint8(pixels[off].A - d.A))]++
+                    }
+                }
+
+                var total float64
+                for _, histo := range histos {
+                    sum := 0
+                    sumSquares := 0
+                
+                    for _, count := range histo {
+                        sum += count
+                        sumSquares += count * count
+                    }
+                
+                    if sum == 0 {
+                        continue
+                    }
+                
+                    total += 1.0 - float64(sumSquares) / (float64(sum) * float64(sum))    
+                }
+
+                if i == 0 || total < bestEntropy {
+                    bestEntropy = total
+                    best = i
+                }
+            }
 
             for tx := x << tileBits; tx < mx; tx++ {
                 for ty := y << tileBits; ty < my; ty++ {
@@ -53,6 +106,11 @@ func applyPredictTransform(pixels []color.NRGBA, width, height int) (int, int, i
                         B: uint8(pixels[off].B - d.B),
                         A: uint8(pixels[off].A - d.A),
                     }
+
+                    accum[0][int(uint8(pixels[off].R - d.R))]++
+                    accum[1][int(uint8(pixels[off].G - d.G))]++
+                    accum[2][int(uint8(pixels[off].B - d.B))]++
+                    accum[3][int(uint8(pixels[off].A - d.A))]++
                 }
             }
 
