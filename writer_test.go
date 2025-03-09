@@ -11,7 +11,6 @@ import (
     //------------------------------
     "image"
     "image/color"
-    "image/draw"
     //------------------------------
     //testing
     //------------------------------
@@ -46,208 +45,6 @@ func generateTestImageNRGBA(width int, height int, brightness float64, hasAlpha 
         }
     }
     return dest
-}
-
-func TestImageDecodeRegistration(t *testing.T) {
-    img := generateTestImageNRGBA(8, 16, 64, true)
-    buf := new(bytes.Buffer)
-
-    if err := Encode(buf, img, nil); err != nil {
-        t.Fatalf("Encode failed: %v", err)
-    }
-
-    img, format, err := image.Decode(buf)
-    if err != nil {
-        t.Errorf("image.Decode error %v", err)
-        return
-    }
-
-    if format != "webp" {
-        t.Errorf("expected format as webp got %v", format)
-        return
-    }
-}
-
-func TestDecode(t *testing.T) {
-    img := generateTestImageNRGBA(8, 8, 64, true)
-    buf := new(bytes.Buffer)
-
-    err := Encode(buf, img, nil)
-    if err != nil {
-         t.Errorf("Encode: expected err as nil got %v", err)
-         return
-    }
-
-    img1, ok := img.(*image.NRGBA)
-    if !ok {
-        t.Errorf("test: unsupported image format for img1")
-        return
-    }
-
-    for id, tt := range []struct {
-        input       []byte 
-        expected    *image.NRGBA
-        expectedErr string
-    }{
-        {
-            buf.Bytes(),
-            img1,
-            "",
-        },
-        {
-            []byte("invalid WebP data"),
-            nil,
-            "riff: missing RIFF chunk header",
-        },
-    }{
-
-        buf := bytes.NewBuffer(tt.input)
-        result, err := Decode(buf)
-
-        if err == nil && tt.expectedErr != "" {
-            t.Errorf("test %d: expected err as %v got nil", id, tt.expectedErr)
-            continue
-        } 
-
-        if err != nil {
-            if tt.expectedErr == "" {
-                t.Errorf("test %d: expected err as nil got %v", id, err)
-                continue
-            }
-
-            if tt.expectedErr != err.Error() {
-                t.Errorf("test %d: expected err as %v got %v", id, tt.expectedErr, err)
-                continue
-            }
-
-            continue
-        }
-
-        img2 := image.NewNRGBA(result.Bounds())
-        draw.Draw(img2, result.Bounds(), result, result.Bounds().Min, draw.Src)
-
-        if !tt.expected.Rect.Eq(img2.Rect) || tt.expected.Stride != img2.Stride {
-            t.Errorf("test %d: expected image dimensions as %v got %v", id, tt.expected.Rect, img2.Rect)
-            continue
-        }
-        
-        if !bytes.Equal(tt.expected.Pix, img2.Pix) {
-            t.Errorf("test %d: expected image to be equal", id)
-            continue
-        }
-    }
-}
-
-func TestDecodeConfig(t *testing.T) {
-    img := generateTestImageNRGBA(8, 16, 64, true)
-    buf := new(bytes.Buffer)
-
-    err := Encode(buf, img, nil)
-    if err != nil {
-         t.Errorf("Encode: expected err as nil got %v", err)
-         return
-    }
-
-    for id, tt := range []struct {
-        input               []byte
-        expectedColorModel  color.Model
-        expectedWidth       int
-        expectedHeight      int
-        expectedErr         string
-    }{
-        {
-            buf.Bytes(),
-            color.NRGBAModel,
-            8,
-            16,
-            "",
-        },
-        {
-            []byte("invalid WebP data"),
-            color.GrayModel,
-            0,
-            0,
-            "riff: missing RIFF chunk header",
-        },
-    }{
-
-        buf := bytes.NewBuffer(tt.input)
-        result, err := DecodeConfig(buf)
-
-        if err == nil && tt.expectedErr != "" {
-            t.Errorf("test %d: expected err as %v got nil", id, tt.expectedErr)
-            continue
-        } 
-
-        if err != nil {
-            if tt.expectedErr == "" {
-                t.Errorf("test %d: expected err as nil got %v", id, err)
-                continue
-            }
-
-            if tt.expectedErr != err.Error() {
-                t.Errorf("test %d: expected err as %v got %v", id, tt.expectedErr, err)
-                continue
-            }
-
-            continue
-        }
-
-        if result.ColorModel != tt.expectedColorModel {
-            t.Errorf("test %d: expected color model as %v got %v", id, tt.expectedColorModel, result.ColorModel)
-            continue
-        }
-
-        if result.Width != tt.expectedWidth {
-            t.Errorf("test %d: expected width as %v got %v", id, tt.expectedWidth, result.Width)
-            continue
-        }
-
-        if result.Height != tt.expectedHeight {
-            t.Errorf("test %d: expected height as %v got %v", id, tt.expectedHeight, result.Height)
-            continue
-        }
-    }
-}
-
-func TestWriteWebPHeader(t *testing.T) {
-    for id, tt := range []struct {
-        inputData       []byte 
-        expectedHeader  []byte
-    }{
-        // Test case with an empty 'b' buffer
-        {
-            inputData:     []byte{},
-            expectedHeader: []byte{
-                'R', 'I', 'F', 'F',         // RIFF
-                0x0C, 0x00, 0x00, 0x00,     // 12 in little-endian (12 + 0)
-                'W', 'E', 'B', 'P',         // WEBP
-                'V', 'P', '8', 'L',         // VP8L
-                0x00, 0x00, 0x00, 0x00,     // 0 in little-endian (size of 'b' buffer)
-            },
-        },
-        // Test case with non-empty 'b' buffer
-        {
-            inputData:     []byte{1, 2, 3, 4, 5},
-            expectedHeader: []byte{
-                'R', 'I', 'F', 'F',         // RIFF
-                0x11, 0x00, 0x00, 0x00,     // 12 in little-endian (12 + 5)
-                'W', 'E', 'B', 'P',         // WEBP
-                'V', 'P', '8', 'L',         // VP8L
-                0x05, 0x00, 0x00, 0x00,     // 0 in little-endian (size of 'b' buffer)
-            },
-        },
-    }{
-        w := &bytes.Buffer{}
-        b := bytes.NewBuffer(tt.inputData)
-
-        writeWebPHeader(w, b)
-
-        if !bytes.Equal(w.Bytes(), tt.expectedHeader) {
-            t.Errorf("test %d: header mismatch expected: %v got: %v", id, tt.expectedHeader, w.Bytes())
-            continue
-        }
-    }
 }
 
 func TestWriteBitStreamHeader(t *testing.T) {
@@ -334,11 +131,13 @@ func TestWriteEncodeErrors(t *testing.T) {
 
 func TestEncode(t *testing.T) {
     for id, tt := range []struct {
-        img             image.Image
-        expectedBytes   []byte
+        img                 image.Image
+        UseExtendedFormat   bool
+        expectedBytes       []byte
     }{
         {
             generateTestImageNRGBA(8, 8, 64, true),
+            false,
             []byte {
                 0x52, 0x49, 0x46, 0x46, 0xd0, 0x00, 0x00, 0x00, 
                 0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x4c, 
@@ -369,12 +168,48 @@ func TestEncode(t *testing.T) {
                 0x7e, 0xbc, 0x41, 0xc6, 0x5a, 0x36, 0xeb, 0x03,
             },
         },
+        {
+            generateTestImageNRGBA(8, 8, 64, true),
+            true,
+            []byte {
+                0x52, 0x49, 0x46, 0x46, 0xe2, 0x00, 0x00, 0x00, 
+                0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x58, 
+                0x0a, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 
+                0x07, 0x00, 0x00, 0x07, 0x00, 0x00, 0x56, 0x50, 
+                0x38, 0x4c, 0xc4, 0x00, 0x00, 0x00, 0x2f, 0x07, 
+                0xc0, 0x01, 0x10, 0x8d, 0x52, 0x09, 0x22, 0xfa, 
+                0x1f, 0x12, 0x06, 0x04, 0x1b, 0x89, 0x09, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x50, 0xee, 
+                0x15, 0x00, 0x80, 0xb2, 0x3e, 0x37, 0x78, 0x04, 
+                0xc8, 0x34, 0xeb, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x70, 0x02, 0x64, 0x9a, 0x75, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x38, 0x01, 
+                0x32, 0xcd, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0x00, 0x00, 0xe0, 0x04, 0x08, 0x70, 0x2e, 0xa8, 
+                0x24, 0x55, 0xed, 0x0d, 0x88, 0x96, 0xf9, 0x6e, 
+                0x56, 0x6b, 0xf3, 0x35, 0x1e, 0x1d, 0x7d, 0x5f, 
+                0x38, 0xdc, 0x7e, 0xbc, 0x41, 0xc6, 0x5a, 0x36, 
+                0xeb, 0x03,
+            },
+        },
     }{
         b := &bytes.Buffer{}
-        Encode(b, tt.img, nil)
+        Encode(b, tt.img, &Options{UseExtendedFormat: tt.UseExtendedFormat})
 
         result := b.Bytes()
-
+        
         if !bytes.Equal(result, tt.expectedBytes) {
             t.Errorf("test %v: BitStream mismatch. Got %s, expected %s", id, result, tt.expectedBytes)
         }

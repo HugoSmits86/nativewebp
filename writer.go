@@ -18,67 +18,88 @@ import (
     //------------------------------
     //"log"
     "errors"
-    decoderWebP "golang.org/x/image/webp"
 )
 
-// Options holds future configuration settings (e.g., compression levels)
+// Options holds configuration settings for WebP encoding.
+//
+// Currently, it provides a flag to enable the extended WebP format (VP8X),
+// which allows for metadata support such as EXIF, ICC color profiles, and XMP.
+//
+// Fields:
+//   - UseExtendedFormat: If true, wraps the VP8L frame inside a VP8X container
+//     to enable metadata support. This does not affect image compression or
+//     encoding itself, as VP8L remains the encoding format.
 type Options struct {
+    UseExtendedFormat   bool
 }
 
-// registers the webp decoder so image.Decode can detect and use it.
-func init() {
-    image.RegisterFormat("webp", "RIFF", Decode, DecodeConfig)
-}
-
-// Decode reads a WebP image from the provided io.Reader and returns it as an image.Image.
+// Encode writes the provided image.Image to the specified io.Writer in WebP format.
 //
-// This function is a wrapper around the underlying WebP decode package (golang.org/x/image/webp).
-// It supports both lossy and lossless WebP formats, decoding the image accordingly.
+// This function always encodes the image using VP8L (lossless WebP). If `UseExtendedFormat`
+// is enabled, it wraps the VP8L frame inside a VP8X container, allowing the use of metadata
+// such as EXIF, ICC color profiles, or XMP metadata.
 //
-// Parameters:
-//   r - The source io.Reader containing the WebP encoded image.
-//
-// Returns:
-//   The decoded image as image.Image or an error if the decoding fails.
-func Decode(r io.Reader) (image.Image, error) {
-    return decoderWebP.Decode(r)
-}
-
-// DecodeConfig reads the image configuration from the provided io.Reader without fully decoding the image.
-//
-// This function is a wrapper around the underlying WebP decode package (golang.org/x/image/webp) and
-// provides access to the image's metadata, such as its dimensions and color model.
-// It is useful for obtaining image information before performing a full decode.
-//
-// Parameters:
-//   r - The source io.Reader containing the WebP encoded image.
-//
-// Returns:
-//   An image.Config containing the image's dimensions and color model, or an error if the configuration cannot be retrieved
-func DecodeConfig(r io.Reader) (image.Config, error) {
-    return decoderWebP.DecodeConfig(r)
-}
-
-// Encode writes the provided image.Image to the specified io.Writer in WebP VP8L format.
-//
-// This function supports VP8L (lossless WebP) encoding and can handle color-indexed images
-// when img is provided as image.Paletted.
+// Note: VP8L already supports transparency, so VP8X is **not required** for alpha support.
 //
 // Parameters:
 //   w   - The destination writer where the encoded WebP image will be written.
 //   img - The input image to be encoded.
-//   o   - Pointer to Options containing encoding settings; currently unused but reserved
-//         for future enhancements such as adjusting compression levels.
+//   o   - Pointer to Options containing encoding settings:
+//         - UseExtendedFormat: If true, wraps the image in a VP8X container to enable 
+//           extended WebP features like metadata.
 //
 // Returns:
 //   An error if encoding fails or writing to the io.Writer encounters an issue.
 func Encode(w io.Writer, img image.Image, o *Options) error {
+    stream, hasAlpha, err := EncodeVP8L(img, o)
+    if err != nil {
+        return err
+    }
+
+    tmp := make([]byte, 4)
+    buf := &bytes.Buffer{}
+
+    if o != nil && o.UseExtendedFormat {
+        buf.Write([]byte("VP8X"))
+        binary.LittleEndian.PutUint32(tmp, 10)
+        buf.Write(tmp)
+    
+        var flags byte
+        if hasAlpha {
+            flags |= 0x10
+        }
+    
+        buf.Write([]byte{flags, 0, 0, 0})
+    
+        dx := img.Bounds().Dx() - 1
+        dy := img.Bounds().Dy() - 1
+    
+        buf.Write([]byte{byte(dx), byte(dx >> 8), byte(dx >> 16)})
+        buf.Write([]byte{byte(dy), byte(dy >> 8), byte(dy >> 16)})
+    }
+
+    buf.Write([]byte("VP8L"))
+    binary.LittleEndian.PutUint32(tmp, uint32(stream.Len()))
+    buf.Write(tmp)
+    buf.Write(stream.Bytes())
+
+    w.Write([]byte("RIFF"))
+    binary.LittleEndian.PutUint32(tmp, uint32(4 + buf.Len()))
+    w.Write(tmp)
+
+    w.Write([]byte("WEBP"))
+    w.Write(buf.Bytes())
+
+    return nil
+}
+
+func EncodeVP8L(img image.Image, o *Options) (*bytes.Buffer, bool, error) {
     if img == nil {
-        return errors.New("image is nil")
+        return nil, false, errors.New("image is nil")
     }
 
     if img.Bounds().Dx() < 1 || img.Bounds().Dy() < 1 {
-        return errors.New("invalid image size")
+        return nil, false, errors.New("invalid image size")
     }
 
     _, isIndexed := img.(*image.Paletted)
@@ -99,7 +120,7 @@ func Encode(w io.Writer, img image.Image, o *Options) error {
 
     err := writeBitStreamData(s, rgba, 4, transforms)
     if err != nil {
-        return err
+        return nil, false, err
     }
     
     s.AlignByte()
@@ -108,27 +129,7 @@ func Encode(w io.Writer, img image.Image, o *Options) error {
         b.Write([]byte{0x00})
     }
 
-    writeWebPHeader(w, b)
-
-    data := b.Bytes()
-    w.Write(data)
-
-    return nil
-}
-
-func writeWebPHeader(w io.Writer, b *bytes.Buffer) {
-    w.Write([]byte("RIFF"))
-
-    tmp := make([]byte, 4)
-    binary.LittleEndian.PutUint32(tmp, uint32(12 + b.Len()))
-    w.Write(tmp)
-
-    w.Write([]byte("WEBP"))
-    w.Write([]byte("VP8L"))
-
-    tmp = make([]byte, 4)
-    binary.LittleEndian.PutUint32(tmp, uint32(b.Len()))
-    w.Write(tmp)
+    return b, !rgba.Opaque(), nil
 }
 
 func writeBitStreamHeader(w *bitWriter, bounds image.Rectangle, hasAlpha bool) {
