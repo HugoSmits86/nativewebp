@@ -44,7 +44,7 @@ func Decode(r io.Reader) (image.Image, error) {
     }
 
     if string(data[12:16]) == "VP8X" && string(data[30:34]) == "VP8L" {
-        if data[20] & (1 << 1) == 1 || data[20] & (1 << 5) == 1 {
+        if data[20] & (1 << 1) != 0 || data[20] & (1 << 5) != 0 {
             return nil, errors.New("webp: invalid format")
         }
 

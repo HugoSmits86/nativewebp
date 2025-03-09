@@ -117,6 +117,73 @@ func TestDecode(t *testing.T) {
     }
 }
 
+func TestDecodeVP8XHeader(t *testing.T) {
+    img := generateTestImageNRGBA(8, 8, 64, true)
+    buf := new(bytes.Buffer)
+    
+    err := Encode(buf, img, &Options{UseExtendedFormat: true})
+    if err != nil {
+        t.Errorf("expected err as nil got %v", err)
+        return
+    }
+
+    data := buf.Bytes()
+
+    for id, tt := range []struct {
+        ICCProfileFlag      bool
+        AnimationFlag       bool
+        expectedErr         string
+    }{
+        {
+            true, 
+            false,
+            "webp: invalid format",
+        },
+        {
+            false, 
+            true,
+            "webp: invalid format",
+        },
+        {
+            true, 
+            true,
+            "webp: invalid format",
+        },
+        {
+            false, 
+            false,
+            "",
+        },
+    }{
+        modifiedData := make([]byte, len(data))
+        copy(modifiedData, data)
+
+        if tt.ICCProfileFlag {
+            modifiedData[20] |= (1 << 1) // Set color profile flag
+        }
+
+        if tt.AnimationFlag {
+            modifiedData[20] |= (1 << 5) // Set animation flag
+        }
+
+        _, err = Decode(bytes.NewReader(modifiedData))
+        if err == nil && tt.expectedErr != "" {
+            t.Errorf("test %d: expected err as %v got nil", id, tt.expectedErr)
+            continue
+        }
+
+        if err != nil && tt.expectedErr == "" {
+            t.Errorf("test %d: expected err as nil got %v", id, err)
+            continue
+        }
+
+        if err != nil && tt.expectedErr != err.Error() {
+            t.Errorf("test %d: expected err as %v got %v", id, tt.expectedErr, err)
+            continue
+        }
+    }
+}
+
 func TestDecodeConfig(t *testing.T) {
     img := generateTestImageNRGBA(8, 16, 64, true)
     buf := new(bytes.Buffer)
