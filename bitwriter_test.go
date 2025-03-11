@@ -79,7 +79,7 @@ func TestWriteBits(t *testing.T) {
     }
 }
 
-func TestwriteCode(t *testing.T) {
+func TestWriteCode(t *testing.T) {
     for id, tt := range []struct {
         initialBuffer   []byte
         initialBitBuf   uint64
