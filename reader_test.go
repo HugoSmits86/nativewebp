@@ -5,6 +5,7 @@ import (
     //general
     //------------------------------
     "bytes"
+    "encoding/binary"
     //------------------------------
     //imaging
     //------------------------------
@@ -159,11 +160,11 @@ func TestDecodeVP8XHeader(t *testing.T) {
         copy(modifiedData, data)
 
         if tt.ICCProfileFlag {
-            modifiedData[20] |= (1 << 1) // Set color profile flag
+            modifiedData[20] |= 0x00000020 // Set color profile flag
         }
 
         if tt.AnimationFlag {
-            modifiedData[20] |= (1 << 5) // Set animation flag
+            modifiedData[20] |= 0x00000002 // Set animation flag
         }
 
         _, err = Decode(bytes.NewReader(modifiedData))
@@ -181,6 +182,50 @@ func TestDecodeVP8XHeader(t *testing.T) {
             t.Errorf("test %d: expected err as %v got %v", id, tt.expectedErr, err)
             continue
         }
+    }
+}
+
+func TestDecodeFindVP8LChunk(t *testing.T) {
+    img := generateTestImageNRGBA(8, 8, 64, true)
+    buf := new(bytes.Buffer)
+    
+    err := Encode(buf, img, &Options{UseExtendedFormat: true})
+    if err != nil {
+        t.Errorf("expected err as nil got %v", err)
+        return
+    }
+
+    tmp := buf.Bytes()
+    data := make([]byte, len(tmp))
+    copy(data, tmp)
+
+    data[20] |= 0x08 // set EXIF flag
+
+    var exif bytes.Buffer
+    exif.Write([]byte("EXIF"))
+    binary.Write(&exif, binary.LittleEndian, uint32(5))
+    exif.Write([]byte("Hello"))
+
+    //TEST: test what happens if VP8L is not directly after VP8X chunk
+    data = append(data[:30], append(exif.Bytes(), data[30:]...)...)
+    binary.LittleEndian.PutUint32(data[4: 8], uint32(len(data) - 8))
+
+    _, err = Decode(bytes.NewReader(data))
+    if err != nil {
+        t.Errorf("expected err as nil got %v", err)
+        return
+    }
+
+    //TEST: test what happens if VP8L chunk is missing
+    data = append(data[:30], exif.Bytes()...)
+    binary.LittleEndian.PutUint32(data[4: 8], uint32(len(data) - 8))
+
+    _, err = Decode(bytes.NewReader(data))
+
+    msg := "webp: invalid format"
+    if err == nil || err.Error() != msg {
+        t.Errorf("expected err as %v got %v", msg, err)
+        return
     }
 }
 
