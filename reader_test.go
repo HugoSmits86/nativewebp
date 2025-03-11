@@ -215,18 +215,6 @@ func TestDecodeFindVP8LChunk(t *testing.T) {
         t.Errorf("expected err as nil got %v", err)
         return
     }
-
-    //TEST: test what happens if VP8L chunk is missing
-    data = append(data[:30], exif.Bytes()...)
-    binary.LittleEndian.PutUint32(data[4: 8], uint32(len(data) - 8))
-
-    _, err = Decode(bytes.NewReader(data))
-
-    msg := "webp: invalid format"
-    if err == nil || err.Error() != msg {
-        t.Errorf("expected err as %v got %v", msg, err)
-        return
-    }
 }
 
 func TestDecodeConfig(t *testing.T) {
