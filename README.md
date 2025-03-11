@@ -8,9 +8,9 @@ This is a native WebP encoder written entirely in Go, with **no dependencies on 
 
 Currently, the encoder supports only WebP lossless images (VP8L).
 
-# Decoding Support
+## Decoding Support
 
-We provide WebP decoding through a wrapper around `golang.org/x/image/webp`, enhancing it with basic VP8X support to enable applications to process a broader range of WebP images.
+We provide WebP decoding through a wrapper around `golang.org/x/image/webp`, enhancing it with basic VP8X/VP8L support to enable applications to process a broader range of WebP images.
 
 ## Benchmark
 
