@@ -43,16 +43,32 @@ func Decode(r io.Reader) (image.Image, error) {
         return nil, errors.New("webp: invalid format")
     }
 
-    if string(data[12:16]) == "VP8X" && string(data[30:34]) == "VP8L" {
-        if data[20] & (1 << 1) != 0 || data[20] & (1 << 5) != 0 {
+    if string(data[12:16]) == "VP8X" {
+        flags := binary.LittleEndian.Uint32(data[20:24])
+        
+        // we do not support ICCP or Animation
+        if flags & 0x00000020 != 0 || flags & 0x00000002 != 0 {
             return nil, errors.New("webp: invalid format")
         }
 
-        size := int(binary.LittleEndian.Uint32(data[16:20]))
-        data = append(data[:12], data[20 + size:]...)
+        i := 30
+        isVP8L := false
+        for i + 8 <= len(data) {
+            if string(data[i: i + 4]) == "VP8L" {
+                isVP8L = true
+                break
+            }
+
+            i += 8 + int(binary.LittleEndian.Uint32(data[i + 4: i + 8]))
+        }
+
+        if !isVP8L {
+            return nil, errors.New("webp: invalid format")
+        }
+
+        data = append(data[:12], data[i:]...)
         binary.LittleEndian.PutUint32(data[4:8], uint32(len(data) - 8))
     }
-   
 
     return decoderWebP.Decode(bytes.NewReader(data))
 }
