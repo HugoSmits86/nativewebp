@@ -64,12 +64,12 @@ func Encode(w io.Writer, img image.Image, o *Options) error {
         binary.LittleEndian.PutUint32(tmp, 10)
         buf.Write(tmp)
     
-        var flags byte
+        var flags uint32
         if hasAlpha {
-            flags |= 0x10
+            flags |= 0x00000010
         }
     
-        buf.Write([]byte{flags, 0, 0, 0})
+        binary.Write(buf, binary.LittleEndian, flags)
     
         dx := img.Bounds().Dx() - 1
         dy := img.Bounds().Dy() - 1
