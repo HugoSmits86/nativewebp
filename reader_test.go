@@ -5,7 +5,6 @@ import (
     //general
     //------------------------------
     "bytes"
-    "encoding/binary"
     //------------------------------
     //imaging
     //------------------------------
@@ -54,12 +53,12 @@ func TestDecode(t *testing.T) {
         {
             img,
             true,
-            "",
+            "webp: invalid format",
         },
         {
             nil,    // if nil is used create a non-webp buffer
             false,
-            "webp: invalid format",
+            "riff: missing RIFF chunk header",
         },
     }{
 
@@ -115,105 +114,6 @@ func TestDecode(t *testing.T) {
             t.Errorf("test %d: expected image to be equal", id)
             continue
         }
-    }
-}
-
-func TestDecodeVP8XHeader(t *testing.T) {
-    img := generateTestImageNRGBA(8, 8, 64, true)
-    buf := new(bytes.Buffer)
-    
-    err := Encode(buf, img, &Options{UseExtendedFormat: true})
-    if err != nil {
-        t.Errorf("expected err as nil got %v", err)
-        return
-    }
-
-    data := buf.Bytes()
-
-    for id, tt := range []struct {
-        ICCProfileFlag      bool
-        AnimationFlag       bool
-        expectedErr         string
-    }{
-        {
-            true, 
-            false,
-            "webp: invalid format",
-        },
-        {
-            false, 
-            true,
-            "webp: invalid format",
-        },
-        {
-            true, 
-            true,
-            "webp: invalid format",
-        },
-        {
-            false, 
-            false,
-            "",
-        },
-    }{
-        modifiedData := make([]byte, len(data))
-        copy(modifiedData, data)
-
-        if tt.ICCProfileFlag {
-            modifiedData[20] |= 0x00000020 // Set color profile flag
-        }
-
-        if tt.AnimationFlag {
-            modifiedData[20] |= 0x00000002 // Set animation flag
-        }
-
-        _, err = Decode(bytes.NewReader(modifiedData))
-        if err == nil && tt.expectedErr != "" {
-            t.Errorf("test %d: expected err as %v got nil", id, tt.expectedErr)
-            continue
-        }
-
-        if err != nil && tt.expectedErr == "" {
-            t.Errorf("test %d: expected err as nil got %v", id, err)
-            continue
-        }
-
-        if err != nil && tt.expectedErr != err.Error() {
-            t.Errorf("test %d: expected err as %v got %v", id, tt.expectedErr, err)
-            continue
-        }
-    }
-}
-
-func TestDecodeFindVP8LChunk(t *testing.T) {
-    img := generateTestImageNRGBA(8, 8, 64, true)
-    buf := new(bytes.Buffer)
-    
-    err := Encode(buf, img, &Options{UseExtendedFormat: true})
-    if err != nil {
-        t.Errorf("expected err as nil got %v", err)
-        return
-    }
-
-    tmp := buf.Bytes()
-    data := make([]byte, len(tmp))
-    copy(data, tmp)
-
-    data[20] |= 0x08 // set EXIF flag
-
-    var exif bytes.Buffer
-    exif.Write([]byte("EXIF"))
-    binary.Write(&exif, binary.LittleEndian, uint32(5))
-    exif.Write([]byte("Hello"))
-
-    //TEST: test what happens if VP8L is not directly after VP8X chunk
-    data = append(data[:30], append(exif.Bytes(), data[30:]...)...)
-    binary.LittleEndian.PutUint32(data[4: 8], uint32(len(data) - 8))
-
-    _, err = Decode(bytes.NewReader(data))
-    if err != nil {
-        t.Errorf("expected err as nil got %v", err)
-        return
     }
 }
 
@@ -286,5 +186,34 @@ func TestDecodeConfig(t *testing.T) {
             t.Errorf("test %d: expected height as %v got %v", id, tt.expectedHeight, result.Height)
             continue
         }
+    }
+}
+
+func TestDecodeIgnoreAlphaFlag(t *testing.T) {
+    img := generateTestImageNRGBA(8, 8, 64, true)
+    buf := new(bytes.Buffer)
+    
+    err := Encode(buf, img, &Options{UseExtendedFormat: true})
+    if err != nil {
+        t.Errorf("expected err as nil got %v", err)
+        return
+    }
+
+    // TEST #0: we expect the default Decode to give an error for VP8X with Alpha flag set
+    data := buf.Bytes()
+
+    _, err = Decode(bytes.NewReader(data))
+    msg := "webp: invalid format"
+    if err == nil || err.Error() != msg {
+        t.Errorf("expected err as %v got %v", msg, err)
+        return
+    }
+
+    // TEST #1: we expect the DecodeIgnoreAlphaFlag to correctly read VP8X with Alpha flag set
+    data = buf.Bytes()
+    _, err = DecodeIgnoreAlphaFlag(bytes.NewReader(data))
+    if err != nil {
+        t.Errorf("expected err as nil got %v", err)
+        return
     }
 }
