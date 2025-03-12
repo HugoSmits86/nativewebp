@@ -10,8 +10,7 @@ Currently, the encoder supports only WebP lossless images (VP8L).
 
 ## Decoding Support
 
-We provide WebP decoding through a wrapper around `golang.org/x/image/webp`, enhancing it with basic VP8X/VP8L support to enable applications to process a broader range of WebP images.
-
+We provide WebP decoding through a wrapper around `golang.org/x/image/webp`, with an additional `DecodeIgnoreAlphaFlag` function to handle VP8X images where the alpha flag causes decoding issues.
 ## Benchmark
 
 We conducted a quick benchmark to showcase file size reduction and encoding performance. Using an image from Google’s WebP Lossless and Alpha Gallery, we compared the results of our nativewebp encoder with the standard PNG encoder. <br/><br/>
