@@ -5,6 +5,7 @@ import (
     //general
     //------------------------------
     "bytes"
+    "encoding/binary"
     //------------------------------
     //imaging
     //------------------------------
@@ -190,27 +191,85 @@ func TestDecodeConfig(t *testing.T) {
 }
 
 func TestDecodeIgnoreAlphaFlag(t *testing.T) {
-    img := generateTestImageNRGBA(8, 8, 64, true)
-    buf := new(bytes.Buffer)
+    for id, tt := range []struct {
+        useExtendedFormat       bool
+        useAlpha                bool
+        expectedErrorDecode     string
+    }{
+        {
+            false,
+            false,
+            "",
+        },
+        {
+            false,
+            true,
+            "",
+        },
+        {
+            true,
+            false,
+            "",
+        },
+        {
+            true,
+            true,
+            "webp: invalid format",
+        },
+    }{
+        img := generateTestImageNRGBA(8, 8, 64, tt.useAlpha)
+
+        buf := new(bytes.Buffer)
+        err := Encode(buf, img, &Options{UseExtendedFormat: tt.useExtendedFormat})
+        if err != nil {
+            t.Errorf("test %v: expected err as nil got %v", id, err)
+            continue
+        }
+
+        // TEST A: we expect the default Decode to give an error for VP8X with Alpha flag set
+        _, err = Decode(bytes.NewReader(buf.Bytes()))
+        if err == nil && tt.expectedErrorDecode != "" {
+            t.Errorf("test %v: expected err as %v got %v", id, tt.expectedErrorDecode, err)
+            continue
+        }
+
+        if err != nil && err.Error() != tt.expectedErrorDecode {
+            t.Errorf("test %v: expected err as %v got %v", id, tt.expectedErrorDecode, err)
+            continue
+        }
     
+        // TEST B: we expect the DecodeIgnoreAlphaFlag to correctly read VP8X with Alpha flag set
+        _, err = DecodeIgnoreAlphaFlag(bytes.NewReader(buf.Bytes()))
+        if err != nil {
+            t.Errorf("test %v: expected err as nil got %v", id, err)
+            continue
+        }
+    }
+}
+
+
+func TestDecodeIgnoreAlphaFlagSearchChunk(t *testing.T) {
+    img := generateTestImageNRGBA(8, 8, 64, true)
+
+    buf := new(bytes.Buffer)
     err := Encode(buf, img, &Options{UseExtendedFormat: true})
     if err != nil {
         t.Errorf("expected err as nil got %v", err)
         return
     }
 
-    // TEST #0: we expect the default Decode to give an error for VP8X with Alpha flag set
     data := buf.Bytes()
-
-    _, err = Decode(bytes.NewReader(data))
-    msg := "webp: invalid format"
-    if err == nil || err.Error() != msg {
-        t.Errorf("expected err as %v got %v", msg, err)
-        return
-    }
-
-    // TEST #1: we expect the DecodeIgnoreAlphaFlag to correctly read VP8X with Alpha flag set
-    data = buf.Bytes()
+    data[20] |= 0x08 // set EXIF flag in VP8X header
+    
+    var exif bytes.Buffer
+    exif.Write([]byte("EXIF"))
+    binary.Write(&exif, binary.LittleEndian, uint32(6))
+    exif.Write([]byte("Hello!"))
+ 
+    //TEST: test what happens if VP8L is not directly after VP8X chunk
+    data = append(data[:30], append(exif.Bytes(), data[30:]...)...)
+    binary.LittleEndian.PutUint32(data[4: 8], uint32(len(data) - 8))
+    
     _, err = DecodeIgnoreAlphaFlag(bytes.NewReader(data))
     if err != nil {
         t.Errorf("expected err as nil got %v", err)

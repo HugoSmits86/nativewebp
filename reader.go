@@ -70,10 +70,19 @@ func DecodeIgnoreAlphaFlag(r io.Reader) (image.Image, error) {
         return nil, err
     }
 
-    if len(data) >= 24 && string(data[8:16]) == "WEBPVP8X" {
-        flags := binary.LittleEndian.Uint32(data[20:24])
-        flags &^= 0x00000010
-        binary.LittleEndian.PutUint32(data[20:24], flags)
+    if len(data) >= 30 && string(data[8:16]) == "WEBPVP8X" {
+        for i := 30; i + 8 < len(data); {
+            // Detect VP8L chunk, which handles transparency internally.
+            // The x/image/webp package misinterprets this, so we clear the alpha flag.
+            if string(data[i: i + 4]) == "VP8L" {
+                flags := binary.LittleEndian.Uint32(data[20:24])
+                flags &^= 0x00000010
+                binary.LittleEndian.PutUint32(data[20:24], flags)
+                break
+            }
+
+            i += 8 + int(binary.LittleEndian.Uint32(data[i + 4: i + 8]))
+        }
     }
 
     return decoderWebP.Decode(bytes.NewReader(data))
