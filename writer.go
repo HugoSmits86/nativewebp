@@ -56,36 +56,33 @@ func Encode(w io.Writer, img image.Image, o *Options) error {
         return err
     }
 
-    tmp := make([]byte, 4)
     buf := &bytes.Buffer{}
 
     if o != nil && o.UseExtendedFormat {
         buf.Write([]byte("VP8X"))
-        binary.LittleEndian.PutUint32(tmp, 10)
-        buf.Write(tmp)
-    
-        var flags uint32
+        binary.Write(buf, binary.LittleEndian, uint32(10))
+
+        var flags byte
         if hasAlpha {
-            flags |= 0x00000010
+            flags |= 1 << 4
         }
-    
+
         binary.Write(buf, binary.LittleEndian, flags)
-    
+        buf.Write([]byte{0x00, 0x00, 0x00})
+
         dx := img.Bounds().Dx() - 1
         dy := img.Bounds().Dy() - 1
-    
+
         buf.Write([]byte{byte(dx), byte(dx >> 8), byte(dx >> 16)})
         buf.Write([]byte{byte(dy), byte(dy >> 8), byte(dy >> 16)})
     }
 
     buf.Write([]byte("VP8L"))
-    binary.LittleEndian.PutUint32(tmp, uint32(stream.Len()))
-    buf.Write(tmp)
+    binary.Write(buf, binary.LittleEndian, uint32(stream.Len()))
     buf.Write(stream.Bytes())
 
     w.Write([]byte("RIFF"))
-    binary.LittleEndian.PutUint32(tmp, uint32(4 + buf.Len()))
-    w.Write(tmp)
+    binary.Write(w, binary.LittleEndian, uint32(4 + buf.Len()))
 
     w.Write([]byte("WEBP"))
     w.Write(buf.Bytes())
