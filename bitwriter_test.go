@@ -79,6 +79,47 @@ func TestWriteBits(t *testing.T) {
     }
 }
 
+func TestWriteBytes(t *testing.T) {
+    for id, tt := range []struct {
+        initialBuffer   []byte
+        initialBitBuf   uint64
+        initialBufSize  int
+        values          []byte
+        expectedBuffer  []byte
+        expectedBitBuf  uint64
+        expectedBufSize int
+    }{
+        {nil, 0, 0, []byte{0xFF}, []byte{0xFF}, 0, 0},                      // Write single byte
+        {nil, 0, 0, []byte{0x12, 0x34}, []byte{0x12, 0x34}, 0, 0},          // Write two bytes
+        {[]byte{0xAB}, 0, 0, []byte{0xCD}, []byte{0xAB, 0xCD}, 0, 0},       // Preserve existing buffer
+        {nil, 0b1, 1, []byte{0x80}, []byte{0x01}, 0b1, 1},                  // Partial bit buffer (1 bit) + new byte
+        {[]byte{0x00}, 0b1111, 4, []byte{0x0F}, []byte{0x00, 0xFF}, 0, 4},  // Partial + full flush
+        {nil, 0, 0, nil, nil, 0, 0},                                        // No values to write
+    } {
+        buffer := &bytes.Buffer{}
+        buffer.Write(tt.initialBuffer)
+        writer := bitWriter{
+            Buffer:        buffer,
+            BitBuffer:     tt.initialBitBuf,
+            BitBufferSize: tt.initialBufSize,
+        }
+
+        writer.writeBytes(tt.values)
+
+        if !bytes.Equal(writer.Buffer.Bytes(), tt.expectedBuffer) {
+            t.Errorf("test %v: buffer mismatch: expected %v, got %v", id, tt.expectedBuffer, writer.Buffer.Bytes())
+        }
+
+        if writer.BitBuffer != tt.expectedBitBuf {
+            t.Errorf("test %v: bit buffer mismatch: expected %064b, got %064b", id, tt.expectedBitBuf, writer.BitBuffer)
+        }
+
+        if writer.BitBufferSize != tt.expectedBufSize {
+            t.Errorf("test %v: bit buffer size mismatch: expected %v, got %v", id, tt.expectedBufSize, writer.BitBufferSize)
+        }
+    }
+}
+
 func TestWriteCode(t *testing.T) {
     for id, tt := range []struct {
         initialBuffer   []byte
@@ -128,7 +169,6 @@ func TestWriteCode(t *testing.T) {
         }
     }
 }
-
 
 func TestWriteThrough(t *testing.T) {
     for id, tt := range []struct {

@@ -27,6 +27,12 @@ func (w *bitWriter) writeBits(value uint64, n int) {
     w.writeThrough()
 }
 
+func (w *bitWriter) writeBytes(values []byte) {
+    for _, v := range values {
+        w.writeBits(uint64(v), 8)
+    }
+}
+
 func (w *bitWriter) writeCode(code huffmanCode) {
     if code.Depth <= 0 {
         return
