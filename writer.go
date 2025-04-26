@@ -99,6 +99,10 @@ func encodeVP8L(img image.Image) (*bytes.Buffer, bool, error) {
         return nil, false, errors.New("invalid image size")
     }
 
+    if img.Bounds().Dx() > 1 << 14 || img.Bounds().Dy() > 1 << 14 {
+        return nil, false, errors.New("invalid image size")
+    }
+
     _, isIndexed := img.(*image.Paletted)
 
     rgba := image.NewNRGBA(image.Rect(0, 0, img.Bounds().Dx(), img.Bounds().Dy()))
