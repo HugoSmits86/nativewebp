@@ -328,8 +328,6 @@ func TestEncodeVP8L(t *testing.T) {
 
         result := b.Bytes()
 
-        printHex(result[:])
-
         if !bytes.Equal(result, tt.expectedBytes) {
             t.Errorf("test %v: BitStream mismatch. Got %s, expected %s", id, result, tt.expectedBytes)
             continue
