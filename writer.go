@@ -51,7 +51,7 @@ type Options struct {
 // Returns:
 //   An error if encoding fails or writing to the io.Writer encounters an issue.
 func Encode(w io.Writer, img image.Image, o *Options) error {
-    stream, hasAlpha, err := EncodeVP8L(img, o)
+    stream, hasAlpha, err := encodeVP8L(img, o)
     if err != nil {
         return err
     }
@@ -93,7 +93,7 @@ func Encode(w io.Writer, img image.Image, o *Options) error {
     return nil
 }
 
-func EncodeVP8L(img image.Image, o *Options) (*bytes.Buffer, bool, error) {
+func encodeVP8L(img image.Image, o *Options) (*bytes.Buffer, bool, error) {
     if img == nil {
         return nil, false, errors.New("image is nil")
     }
@@ -123,7 +123,7 @@ func EncodeVP8L(img image.Image, o *Options) (*bytes.Buffer, bool, error) {
         return nil, false, err
     }
     
-    s.AlignByte()
+    s.alignByte()
 
     if b.Len() % 2 != 0 {
         b.Write([]byte{0x00})

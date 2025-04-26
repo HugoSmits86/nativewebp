@@ -194,7 +194,7 @@ func TestAlignByte(t *testing.T) {
             BitBufferSize: tt.initialBufSize,
         }
 
-        writer.AlignByte()
+        writer.alignByte()
 
         if !bytes.Equal(writer.Buffer.Bytes(), tt.expectedBuffer) {
             t.Errorf("test %v: buffer mismatch: expected %v, got %v", id, tt.expectedBuffer, writer.Buffer.Bytes())

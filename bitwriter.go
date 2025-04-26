@@ -42,7 +42,7 @@ func (w *bitWriter) writeCode(code huffmanCode) {
     w.writeBits(reversed, code.Depth)
 }
 
-func (w *bitWriter) AlignByte() {
+func (w *bitWriter) alignByte() {
     w.BitBufferSize = (w.BitBufferSize + 7) &^ 7
     w.writeThrough()
 }
