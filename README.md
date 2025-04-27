@@ -117,3 +117,34 @@ if err != nil {
   log.Fatalf("Error encoding image to WebP: %v", err)
 }
 ```
+
+Here’s a simple example of how to encode an animation:
+```Go
+file, err := os.Create(name)
+if err != nil {
+  log.Fatalf("Error creating file %s: %v", name, err)
+}
+defer file.Close()
+
+ani := nativewebp.Animation{
+  Images: []image.Image{
+    frame1,
+    frame2,
+  },
+  Durations: []uint {
+    100,
+    100,
+  },
+  Disposals: []uint {
+    0,
+    0,
+  },
+  LoopCount: 0,
+  BackgroundColor: 0xffffffff,
+}
+
+err = nativewebp.EncodeAll(file, &ani, nil)
+if err != nil {
+  log.Fatalf("Error encoding WebP animation: %v", err)
+}
+```
