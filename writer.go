@@ -32,6 +32,25 @@ type Options struct {
     UseExtendedFormat   bool
 }
 
+// Animation holds configuration settings for WebP animations.
+//
+// It allows encoding a sequence of frames with individual timing and disposal options,
+// supporting features like looping and background color settings.
+//
+// Fields:
+//   - Images: A list of frames to be displayed in sequence.
+//   - Durations: Timing for each frame in milliseconds, matching the Images slice.
+//   - Disposals: Disposal methods for frames after display; 0 = keep, 1 = clear to background.
+//   - LoopCount: Number of times the animation should repeat; 0 means infinite looping.
+//   - BackgroundColor: Canvas background color in BGRA order, used for clear operations.
+type Animation struct {
+	Images              []image.Image
+	Durations           []uint
+	Disposals           []uint
+	LoopCount           uint16
+	BackgroundColor     uint32
+}
+
 // Encode writes the provided image.Image to the specified io.Writer in WebP format.
 //
 // This function always encodes the image using VP8L (lossless WebP). If `UseExtendedFormat`
@@ -74,6 +93,60 @@ func Encode(w io.Writer, img image.Image, o *Options) error {
     return nil
 }
 
+// EncodeAll writes the provided animation sequence to the specified io.Writer in WebP format.
+//
+// This function encodes a list of frames as a WebP animation using the VP8X container, which
+// supports features like looping, frame timing, disposal methods, and background color settings.
+// Each frame is individually compressed using the VP8L (lossless) format.
+//
+// Note: Even if `UseExtendedFormat` is not explicitly set, animations always use the VP8X container
+// because it is required for WebP animation support.
+//
+// Parameters:
+//   w   - The destination writer where the encoded WebP animation will be written.
+//   ani - Pointer to Animation containing the frames and animation settings:
+//         - Images: List of frames to encode.
+//         - Durations: Display times for each frame in milliseconds.
+//         - Disposals: Disposal methods after frame display (keep or clear).
+//         - LoopCount: Number of times the animation should loop (0 = infinite).
+//         - BackgroundColor: Background color for the canvas, used when clearing.
+//   o   - Pointer to Options containing additional encoding settings:
+//         - UseExtendedFormat: Currently unused for animations, but accepted for consistency.
+//
+// Returns:
+//   An error if encoding fails or writing to the io.Writer encounters an issue.
+func EncodeAll(w io.Writer, ani *Animation, o *Options) error {
+    frames, alpha, err := writeFrames(ani)
+    if err != nil {
+        return err
+    }
+
+    var bounds image.Rectangle
+    for _, img := range ani.Images {
+        bounds.Max.X = max(img.Bounds().Max.X, bounds.Max.X)
+        bounds.Max.Y = max(img.Bounds().Max.Y, bounds.Max.Y)
+    }
+
+    buf := &bytes.Buffer{}
+
+    writeChunkVP8X(buf, bounds, alpha, true)
+
+    buf.Write([]byte("ANIM"))
+    binary.Write(buf, binary.LittleEndian, uint32(6))
+    binary.Write(buf, binary.LittleEndian, uint32(ani.BackgroundColor))
+    binary.Write(buf, binary.LittleEndian, uint16(ani.LoopCount))
+
+    buf.Write(frames.Bytes())
+
+    w.Write([]byte("RIFF"))
+    binary.Write(w, binary.LittleEndian, uint32(4 + buf.Len()))
+
+    w.Write([]byte("WEBP"))
+    w.Write(buf.Bytes())
+
+    return nil
+}
+
 func writeChunkVP8X(buf *bytes.Buffer, bounds image.Rectangle, flagAlpha, flagAni bool) {
     buf.Write([]byte("VP8X"))
     binary.Write(buf, binary.LittleEndian, uint32(10))
@@ -95,6 +168,59 @@ func writeChunkVP8X(buf *bytes.Buffer, bounds image.Rectangle, flagAlpha, flagAn
 
     buf.Write([]byte{byte(dx), byte(dx >> 8), byte(dx >> 16)})
     buf.Write([]byte{byte(dy), byte(dy >> 8), byte(dy >> 16)})
+}
+
+func writeFrames(ani *Animation) (*bytes.Buffer, bool, error) {
+    if len(ani.Images) == 0 {
+        return nil, false, errors.New("must provide at least one image")
+    }
+
+    if len(ani.Images) != len(ani.Durations) {
+        return nil, false, errors.New("mismatched image and durations lengths")
+    }
+
+    if len(ani.Images) != len(ani.Disposals) {
+        return nil, false, errors.New("mismatched image and disposals lengths")
+    }
+
+    for i := 0; i < len(ani.Images); i++ {
+        ani.Durations[i] = min(ani.Durations[i], 1 << 24 - 1)
+        ani.Disposals[i] = min(ani.Disposals[i], 1)
+    }
+
+    buf := &bytes.Buffer{}
+    
+    var hasAlpha bool
+    for i, img := range ani.Images {
+        stream, alpha, err := writeBitStream(img)
+        if err != nil {
+            return nil, false, err
+        }
+    
+        hasAlpha = hasAlpha || alpha
+
+        w := &bitWriter{Buffer: buf}
+        w.writeBytes([]byte("ANMF"))
+        w.writeBits(uint64(16 + 8 + stream.Len()), 32)
+    
+        // WebP specs requires frame offsets to be divided by 2
+        w.writeBits(uint64(img.Bounds().Min.X / 2), 24)
+        w.writeBits(uint64(img.Bounds().Min.Y / 2), 24)
+    
+        w.writeBits(uint64(img.Bounds().Dx() - 1), 24)
+        w.writeBits(uint64(img.Bounds().Dy() - 1), 24)
+    
+        w.writeBits(uint64(ani.Durations[i]), 24)
+        w.writeBits(uint64(ani.Disposals[i]), 1)
+        w.writeBits(uint64(0), 1)
+        w.writeBits(uint64(0), 6)
+    
+        w.writeBytes([]byte("VP8L"))
+        w.writeBits(uint64(stream.Len()), 32)
+        w.Buffer.Write(stream.Bytes())
+    }
+
+    return buf, hasAlpha, nil
 }
 
 func writeBitStream(img image.Image) (*bytes.Buffer, bool, error) {
