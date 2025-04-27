@@ -16,7 +16,6 @@ import (
     //------------------------------
     //errors
     //------------------------------
-    //"log"
     "errors"
 )
 
@@ -51,7 +50,7 @@ type Options struct {
 // Returns:
 //   An error if encoding fails or writing to the io.Writer encounters an issue.
 func Encode(w io.Writer, img image.Image, o *Options) error {
-    stream, hasAlpha, err := encodeVP8L(img)
+    stream, hasAlpha, err := writeBitStream(img)
     if err != nil {
         return err
     }
@@ -90,7 +89,7 @@ func Encode(w io.Writer, img image.Image, o *Options) error {
     return nil
 }
 
-func encodeVP8L(img image.Image) (*bytes.Buffer, bool, error) {
+func writeBitStream(img image.Image) (*bytes.Buffer, bool, error) {
     if img == nil {
         return nil, false, errors.New("image is nil")
     }

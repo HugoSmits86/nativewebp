@@ -47,60 +47,7 @@ func generateTestImageNRGBA(width int, height int, brightness float64, hasAlpha 
     return dest
 }
 
-func TestWriteBitStreamHeader(t *testing.T) {
-    for id, tt := range []struct {
-        bounds       image.Rectangle
-        hasAlpha     bool
-        expectedBits []byte
-    }{
-        // Test case with no alpha channel
-        {
-            bounds:   image.Rect(0, 0, 16, 16),
-            hasAlpha: false,
-            expectedBits: []byte{
-                0x2f,       // Header prefix
-                0x0f, 0xc0, // Width - 1 (14 bits: 15) + first 6 bits of Height - 1
-                0x03, 0x00, // Remaining bits of Height - 1 (14 bits: 15) + no alpha + padding
-            },
-        },
-        // Test case with alpha channel
-        {
-            bounds:   image.Rect(0, 0, 32, 32),
-            hasAlpha: true,
-            expectedBits: []byte{
-                0x2f,       // Header prefix
-                0x1f, 0xc0, // Width - 1 (14 bits: 31) + first 6 bits of Height - 1
-                0x07, 0x10, // Remaining bits of Height - 1 (14 bits: 31) + alpha + padding
-            },
-        },
-        // Larger rectangle with no alpha
-        {
-            bounds:   image.Rect(0, 0, 128, 64),
-            hasAlpha: false,
-            expectedBits: []byte{
-                0x2f,       // Header prefix
-                0x7f, 0xc0, // Width - 1 (14 bits: 127) + first 6 bits of Height - 1
-                0x0f, 0x00, // Remaining bits of Height - 1 (14 bits: 63) + no alpha + padding
-            },
-        },
-    }{
-        buffer := &bytes.Buffer{}
-        writer := &bitWriter{
-            Buffer:        buffer,
-            BitBuffer:     0,
-            BitBufferSize: 0,
-        }
-
-        writeBitStreamHeader(writer, tt.bounds, tt.hasAlpha)
-
-        if !bytes.Equal(buffer.Bytes(), tt.expectedBits) {
-            t.Errorf("test %d: buffer mismatch expected: %v got: %v\n", id, tt.expectedBits, buffer.Bytes())
-            continue
-        }
-    }
-}
-
-func TestWriteEncodeErrors(t *testing.T) {
+func TestEncodeErrors(t *testing.T) {
     for id, tt := range []struct {
         img         image.Image
         expectedMsg string
@@ -220,7 +167,60 @@ func TestEncode(t *testing.T) {
     }
 }
 
-func TestWritEncodeVP8LErrors(t *testing.T) {
+func TestWriteBitStreamHeader(t *testing.T) {
+    for id, tt := range []struct {
+        bounds       image.Rectangle
+        hasAlpha     bool
+        expectedBits []byte
+    }{
+        // Test case with no alpha channel
+        {
+            bounds:   image.Rect(0, 0, 16, 16),
+            hasAlpha: false,
+            expectedBits: []byte{
+                0x2f,       // Header prefix
+                0x0f, 0xc0, // Width - 1 (14 bits: 15) + first 6 bits of Height - 1
+                0x03, 0x00, // Remaining bits of Height - 1 (14 bits: 15) + no alpha + padding
+            },
+        },
+        // Test case with alpha channel
+        {
+            bounds:   image.Rect(0, 0, 32, 32),
+            hasAlpha: true,
+            expectedBits: []byte{
+                0x2f,       // Header prefix
+                0x1f, 0xc0, // Width - 1 (14 bits: 31) + first 6 bits of Height - 1
+                0x07, 0x10, // Remaining bits of Height - 1 (14 bits: 31) + alpha + padding
+            },
+        },
+        // Larger rectangle with no alpha
+        {
+            bounds:   image.Rect(0, 0, 128, 64),
+            hasAlpha: false,
+            expectedBits: []byte{
+                0x2f,       // Header prefix
+                0x7f, 0xc0, // Width - 1 (14 bits: 127) + first 6 bits of Height - 1
+                0x0f, 0x00, // Remaining bits of Height - 1 (14 bits: 63) + no alpha + padding
+            },
+        },
+    }{
+        buffer := &bytes.Buffer{}
+        writer := &bitWriter{
+            Buffer:        buffer,
+            BitBuffer:     0,
+            BitBufferSize: 0,
+        }
+
+        writeBitStreamHeader(writer, tt.bounds, tt.hasAlpha)
+
+        if !bytes.Equal(buffer.Bytes(), tt.expectedBits) {
+            t.Errorf("test %d: buffer mismatch expected: %v got: %v\n", id, tt.expectedBits, buffer.Bytes())
+            continue
+        }
+    }
+}
+
+func TestWritBitStreamErrors(t *testing.T) {
     for id, tt := range []struct {
         img         image.Image
         expectedMsg string
@@ -238,7 +238,7 @@ func TestWritEncodeVP8LErrors(t *testing.T) {
             "invalid image size",
         },
     }{
-        _, _, err := encodeVP8L(tt.img)
+        _, _, err := writeBitStream(tt.img)
         if err == nil {
             t.Errorf("test %v: expected error %v got nil", id, tt.expectedMsg)
             continue
@@ -251,7 +251,7 @@ func TestWritEncodeVP8LErrors(t *testing.T) {
     }
 }
 
-func TestEncodeVP8L(t *testing.T) {
+func TestWriteBitStream(t *testing.T) {
     for id, tt := range []struct {
         img                 image.Image
         expectedAlpha       bool
@@ -315,7 +315,7 @@ func TestEncodeVP8L(t *testing.T) {
             },
         },
     }{
-        b, alpha, err := encodeVP8L(tt.img)
+        b, alpha, err := writeBitStream(tt.img)
         if err != nil {
             t.Errorf("test %v: unexpected error %v", id, err)
             continue
