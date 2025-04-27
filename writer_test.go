@@ -167,6 +167,76 @@ func TestEncode(t *testing.T) {
     }
 }
 
+func TestWriteChunkVP8X(t *testing.T) {
+    for id, tt := range []struct {
+        bounds       image.Rectangle
+        flagAlpha    bool
+        flagAni      bool
+        expectedBits []byte
+    }{
+        {
+            bounds:   image.Rect(0, 0, 16, 16),
+            flagAlpha: false,
+            flagAni:   false,
+            expectedBits: []byte{
+                'V', 'P', '8', 'X',
+                0x0a, 0x00, 0x00, 0x00,     // Chunk size (10)
+                0x00,                       // Flags
+                0x00, 0x00, 0x00,           // Reserved
+                0x0f, 0x00, 0x00,           // Width - 1 = 15
+                0x0f, 0x00, 0x00,           // Height - 1 = 15
+            },
+        },
+        {
+            bounds:   image.Rect(0, 0, 32, 32),
+            flagAlpha: true,
+            flagAni:   false,
+            expectedBits: []byte{
+                'V', 'P', '8', 'X',
+                0x0a, 0x00, 0x00, 0x00,
+                0x10,                       // Flags (alpha bit set)
+                0x00, 0x00, 0x00,
+                0x1f, 0x00, 0x00,
+                0x1f, 0x00, 0x00,
+            },
+        },
+        {
+            bounds:   image.Rect(0, 0, 64, 128),
+            flagAlpha: false,
+            flagAni:   true,
+            expectedBits: []byte{
+                'V', 'P', '8', 'X',
+                0x0a, 0x00, 0x00, 0x00,
+                0x02,                       // Flags (animation bit set)
+                0x00, 0x00, 0x00,
+                0x3f, 0x00, 0x00,           // Width - 1 = 63
+                0x7f, 0x00, 0x00,           // Height - 1 = 127
+            },
+        },
+        {
+            bounds:   image.Rect(0, 0, 256, 256),
+            flagAlpha: true,
+            flagAni:   true,
+            expectedBits: []byte{
+                'V', 'P', '8', 'X',
+                0x0a, 0x00, 0x00, 0x00,
+                0x12,                       // Flags (alpha + animation bits set)
+                0x00, 0x00, 0x00,
+                0xff, 0x00, 0x00,           // Width - 1 = 255
+                0xff, 0x00, 0x00,           // Height - 1 = 255
+            },
+        },
+    }{
+        buffer := &bytes.Buffer{}
+        writeChunkVP8X(buffer, tt.bounds, tt.flagAlpha, tt.flagAni)
+
+        if !bytes.Equal(buffer.Bytes(), tt.expectedBits) {
+            t.Errorf("test %d: buffer mismatch expected: %v got: %v\n", id, tt.expectedBits, buffer.Bytes())
+            continue
+        }
+    }
+}
+
 func TestWriteBitStreamHeader(t *testing.T) {
     for id, tt := range []struct {
         bounds       image.Rectangle

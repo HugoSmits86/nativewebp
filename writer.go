@@ -58,22 +58,7 @@ func Encode(w io.Writer, img image.Image, o *Options) error {
     buf := &bytes.Buffer{}
 
     if o != nil && o.UseExtendedFormat {
-        buf.Write([]byte("VP8X"))
-        binary.Write(buf, binary.LittleEndian, uint32(10))
-
-        var flags byte
-        if hasAlpha {
-            flags |= 1 << 4
-        }
-
-        binary.Write(buf, binary.LittleEndian, flags)
-        buf.Write([]byte{0x00, 0x00, 0x00})
-
-        dx := img.Bounds().Dx() - 1
-        dy := img.Bounds().Dy() - 1
-
-        buf.Write([]byte{byte(dx), byte(dx >> 8), byte(dx >> 16)})
-        buf.Write([]byte{byte(dy), byte(dy >> 8), byte(dy >> 16)})
+        writeChunkVP8X(buf, img.Bounds(), hasAlpha, false)
     }
 
     buf.Write([]byte("VP8L"))
@@ -87,6 +72,29 @@ func Encode(w io.Writer, img image.Image, o *Options) error {
     w.Write(buf.Bytes())
 
     return nil
+}
+
+func writeChunkVP8X(buf *bytes.Buffer, bounds image.Rectangle, flagAlpha, flagAni bool) {
+    buf.Write([]byte("VP8X"))
+    binary.Write(buf, binary.LittleEndian, uint32(10))
+
+    var flags byte
+    if flagAni {
+        flags |= 1 << 1
+    }
+
+    if flagAlpha {
+        flags |= 1 << 4
+    }
+
+    binary.Write(buf, binary.LittleEndian, flags)
+    buf.Write([]byte{0x00, 0x00, 0x00})
+
+    dx := bounds.Dx() - 1
+    dy := bounds.Dy() - 1
+
+    buf.Write([]byte{byte(dx), byte(dx >> 8), byte(dx >> 16)})
+    buf.Write([]byte{byte(dy), byte(dy >> 8), byte(dy >> 16)})
 }
 
 func writeBitStream(img image.Image) (*bytes.Buffer, bool, error) {
