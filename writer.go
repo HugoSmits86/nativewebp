@@ -473,7 +473,7 @@ func encodeImageData(pixels []color.NRGBA, width, height, colorCacheBits int) []
         if colorCacheBits > 0 {
             hash := hash(p, colorCacheBits)
 
-            if cache[hash] == p {
+            if i > 0 && cache[hash] == p {
                 encoded[cnt] = int(hash + 256 + 24)
                 cnt++
                 continue
