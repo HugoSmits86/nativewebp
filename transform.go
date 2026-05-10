@@ -26,11 +26,9 @@ const (
     transformColorIndexing  = transform(3)     
 )
 
-func applyPredictTransform(pixels []color.NRGBA, width, height int) (int, int, int, []color.NRGBA) {
-    tileBits := 4
-    tileSize := 1 << tileBits
-    bw := (width + tileSize - 1) / tileSize
-    bh := (height + tileSize - 1) / tileSize
+func applyPredictTransform(pixels []color.NRGBA, width, height, transBits int) (int, int, []color.NRGBA) {
+    bw := (width + (1 << transBits) - 1) >> transBits
+    bh := (height + (1 << transBits) - 1) >> transBits
 
     blocks := make([]color.NRGBA, bw * bh)
     deltas := make([]color.NRGBA, width * height)
@@ -50,8 +48,8 @@ func applyPredictTransform(pixels []color.NRGBA, width, height int) (int, int, i
 
     for y := 0; y < bh; y++ {
         for x := 0; x < bw; x++ {
-            mx := min((x + 1) << tileBits, width)
-            my := min((y + 1) << tileBits, height)
+            mx := min((x + 1) << transBits, width)
+            my := min((y + 1) << transBits, height)
 
             var best int
             var bestEntropy float64
@@ -60,8 +58,8 @@ func applyPredictTransform(pixels []color.NRGBA, width, height int) (int, int, i
                     copy(histos[j], accum[j])
                 }
 
-                for tx := x << tileBits; tx < mx; tx++ {
-                    for ty := y << tileBits; ty < my; ty++ {
+                for tx := x << transBits; tx < mx; tx++ {
+                    for ty := y << transBits; ty < my; ty++ {
                         d := applyFilter(pixels, width, tx, ty, i)
 
                         off := ty * width + tx
@@ -95,10 +93,10 @@ func applyPredictTransform(pixels []color.NRGBA, width, height int) (int, int, i
                 }
             }
 
-            for tx := x << tileBits; tx < mx; tx++ {
-                for ty := y << tileBits; ty < my; ty++ {
+            for tx := x << transBits; tx < mx; tx++ {
+                for ty := y << transBits; ty < my; ty++ {
                     d := applyFilter(pixels, width, tx, ty, best)
-                    
+
                     off := ty * width + tx
                     deltas[off] = color.NRGBA{
                         R: uint8(pixels[off].R - d.R),
@@ -120,7 +118,7 @@ func applyPredictTransform(pixels []color.NRGBA, width, height int) (int, int, i
     
     copy(pixels, deltas)
     
-    return tileBits, bw, bh, blocks
+    return bw, bh, blocks
 }
 
 func applyFilter(pixels []color.NRGBA, width, x, y, prediction int) color.NRGBA {
@@ -212,11 +210,9 @@ func applyFilter(pixels []color.NRGBA, width, x, y, prediction int) color.NRGBA 
     return filters[prediction](t, l, tl, tr)
 }
 
-func applyColorTransform(pixels []color.NRGBA, width, height int) (int, int, int, []color.NRGBA) {
-    tileBits := 4
-    tileSize := 1 << tileBits
-    bw := (width + tileSize - 1) / tileSize
-    bh := (height + tileSize - 1) / tileSize
+func applyColorTransform(pixels []color.NRGBA, width, height, transBits int) (int, int, []color.NRGBA) {
+    bw := (width + (1 << transBits) - 1) >> transBits
+    bh := (height + (1 << transBits) - 1) >> transBits
 
     blocks := make([]color.NRGBA, bw * bh)
     deltas := make([]color.NRGBA, width * height)
@@ -231,11 +227,11 @@ func applyColorTransform(pixels []color.NRGBA, width, height int) (int, int, int
     
     for y := 0; y < bh; y++ {
         for x := 0; x < bw; x++ {
-            mx := min((x + 1) << tileBits, width)
-            my := min((y + 1) << tileBits, height)
+            mx := min((x + 1) << transBits, width)
+            my := min((y + 1) << transBits, height)
 
-            for tx := x << tileBits; tx < mx; tx++ {
-                for ty := y << tileBits; ty < my; ty++ {
+            for tx := x << transBits; tx < mx; tx++ {
+                for ty := y << transBits; ty < my; ty++ {
                     off := ty * width + tx
 
                     r := int(int8(pixels[off].R))
@@ -259,7 +255,7 @@ func applyColorTransform(pixels []color.NRGBA, width, height int) (int, int, int
     
     copy(pixels, deltas)
     
-    return tileBits, bw, bh, blocks
+    return bw, bh, blocks
 }
 
 func applySubtractGreenTransform(pixels []color.NRGBA) {

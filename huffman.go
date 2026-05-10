@@ -8,6 +8,13 @@ import (
     "sort"
 )
 
+const (
+    NUM_HUFFMAN_BITS        = 3
+    MIN_HUFFMAN_BITS        = 2
+    MAX_HUFFMAN_BITS        = (MIN_HUFFMAN_BITS + (1 << NUM_HUFFMAN_BITS) - 1)
+    MAX_HUFF_IMAGE_SIZE     = 2600
+)
+
 type huffmanCode struct {
     Symbol  int
     Bits    int

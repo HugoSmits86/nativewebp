@@ -16,49 +16,74 @@ import (
     //------------------------------
     "testing"
 )
-
 func TestApplyPredictTransform(t *testing.T) {
     for id, tt := range []struct {
         width                   int
         height                  int
+        transBits               int
         expectedBlockWidth      int
         expectedBlockHeight     int
         expectedHash            string
         expectedBlocks          []color.NRGBA
-        expectedBit             int
     }{
         {   // default case
             32,
             32,
+            4,
             2,
             2,
             "d333d3e3bea7503db703dc5608240d7919b584cfa113bb655444c3547a6b8457",
             []color.NRGBA{
-                {0, 4, 0, 255}, 
-                {0, 4, 0, 255}, 
-                {0, 4, 0, 255}, 
                 {0, 4, 0, 255},
-            }, 
-            4,
+                {0, 4, 0, 255},
+                {0, 4, 0, 255},
+                {0, 4, 0, 255},
+            },
         },
         {   // not power of 2 image res
             33,
             33,
+            4,
             3,
             3,
             "a92e9e0413411cff17aec2abe8adf17c38149bd28ed3230c96ac6379e7055038",
             []color.NRGBA{
-                {0, 4, 0, 255}, 
-                {0, 4, 0, 255}, 
-                {0, 4, 0, 255}, 
-                {0, 4, 0, 255}, 
-                {0, 4, 0, 255}, 
-                {0, 4, 0, 255}, 
-                {0, 4, 0, 255}, 
-                {0, 4, 0, 255}, 
+                {0, 4, 0, 255},
+                {0, 4, 0, 255},
+                {0, 4, 0, 255},
+                {0, 4, 0, 255},
+                {0, 4, 0, 255},
+                {0, 4, 0, 255},
+                {0, 4, 0, 255},
+                {0, 4, 0, 255},
                 {0, 3, 0, 255},
-            }, 
-            4,
+            },
+        },
+        {   // smallest tile size (transBits=2)
+            32,
+            32,
+            2,
+            8,
+            8,
+            "d333d3e3bea7503db703dc5608240d7919b584cfa113bb655444c3547a6b8457",
+            []color.NRGBA{
+                {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255},
+                {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255},
+                {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255},
+                {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255},
+                {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255},
+                {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255},
+                {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255},
+                {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255},
+                {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255},
+                {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255},
+                {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255},
+                {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255},
+                {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255},
+                {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255},
+                {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255},
+                {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255}, {0, 4, 0, 255},
+            },
         },
     }{
         img := generateTestImageNRGBA(tt.width, tt.height, 64, true)
@@ -68,7 +93,7 @@ func TestApplyPredictTransform(t *testing.T) {
             continue
         }
 
-        tileBit, bw, bh, blocks := applyPredictTransform(pixels, tt.width, tt.height)
+        bw, bh, blocks := applyPredictTransform(pixels, tt.width, tt.height, tt.transBits)
 
         if bw != tt.expectedBlockWidth {
             t.Errorf("test %v: expected block width as %v got %v", id, tt.expectedBlockWidth, bw)
@@ -82,11 +107,6 @@ func TestApplyPredictTransform(t *testing.T) {
 
         if !reflect.DeepEqual(blocks, tt.expectedBlocks) {
             t.Errorf("test %v: expected blocks as %v got %v", id, tt.expectedBlocks, blocks)
-            continue
-        }
-
-        if tileBit != tt.expectedBit {
-            t.Errorf("test %v: expected tile bit as %v got %v", id, tt.expectedBit, tileBit)
             continue
         }
 
@@ -105,7 +125,6 @@ func TestApplyPredictTransform(t *testing.T) {
         }
     }
 }
-
 func TestApplyFilter(t *testing.T) {
     pixels := []color.NRGBA{
         {R: 100, G: 100, B: 100, A: 255}, {R: 50, G: 50, B: 50, A: 255}, {R: 25, G: 25, B: 25, A: 255},
@@ -156,15 +175,16 @@ func TestApplyColorTransform(t *testing.T) {
     for id, tt := range []struct {
         width                   int
         height                  int
+        transBits               int
         expectedBlockWidth      int
         expectedBlockHeight     int
         expectedHash            string
         expectedBlocks          []color.NRGBA
-        expectedBit             int
     }{
         {   // default case
             32,
             32,
+            4,
             2,
             2,
             "7d2e490f816b7abe5f0f3dde85435a95da2a4295636cbc338689739fb1d936aa",
@@ -174,11 +194,11 @@ func TestApplyColorTransform(t *testing.T) {
                 {1, 2, 3, 255},
                 {1, 2, 3, 255},
             },
-            4,
         },
         {   // non-power-of-2 dimensions
             33,
             33,
+            4,
             3,
             3,
             "be8a424305cc8e044a6fbb16c2d3a14c2ece1fd2733d41f6f9b452790c22ccb8",
@@ -193,7 +213,32 @@ func TestApplyColorTransform(t *testing.T) {
                 {1, 2, 3, 255},
                 {1, 2, 3, 255},
             },
-            4,
+        },
+        {   // smallest tile size (transBits=2)
+            32,
+            32,
+            2,
+            8,
+            8,
+            "7d2e490f816b7abe5f0f3dde85435a95da2a4295636cbc338689739fb1d936aa",
+            []color.NRGBA{
+                {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255},
+                {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255},
+                {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255},
+                {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255},
+                {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255},
+                {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255},
+                {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255},
+                {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255},
+                {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255},
+                {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255},
+                {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255},
+                {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255},
+                {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255},
+                {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255},
+                {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255},
+                {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255}, {1, 2, 3, 255},
+            },
         },
     } {
         img := generateTestImageNRGBA(tt.width, tt.height, 128, true)
@@ -203,7 +248,7 @@ func TestApplyColorTransform(t *testing.T) {
             continue
         }
 
-        tileBit, bw, bh, blocks := applyColorTransform(pixels, tt.width, tt.height)
+        bw, bh, blocks := applyColorTransform(pixels, tt.width, tt.height, tt.transBits)
 
         if bw != tt.expectedBlockWidth {
             t.Errorf("test %v: expected block width as %v got %v", id, tt.expectedBlockWidth, bw)
@@ -217,11 +262,6 @@ func TestApplyColorTransform(t *testing.T) {
 
         if !reflect.DeepEqual(blocks, tt.expectedBlocks) {
             t.Errorf("test %v: expected blocks as %v got %v", id, tt.expectedBlocks, blocks)
-            continue
-        }
-
-        if tileBit != tt.expectedBit {
-            t.Errorf("test %v: expected tile bit as %v got %v", id, tt.expectedBit, tileBit)
             continue
         }
 

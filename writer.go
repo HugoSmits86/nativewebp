@@ -19,17 +19,33 @@ import (
     "errors"
 )
 
+// CompressionLevel indicates the compression level.
+type CompressionLevel int
+
+const (
+	DefaultCompression CompressionLevel = 4
+	BestSpeed          CompressionLevel = 0
+	BestCompression    CompressionLevel = 6
+)
+
 // Options holds configuration settings for WebP encoding.
 //
-// Currently, it provides a flag to enable the extended WebP format (VP8X),
-// which allows for metadata support such as EXIF, ICC color profiles, and XMP.
-//
 // Fields:
-//   - UseExtendedFormat: If true, wraps the VP8L frame inside a VP8X container
-//     to enable metadata support. This does not affect image compression or
-//     encoding itself, as VP8L remains the encoding format.
+//   - UseExtendedFormat:
+//     If true, wraps the VP8L frame inside a VP8X container to enable
+//     metadata support such as EXIF, ICC color profiles, and XMP.
+//     This does not affect image compression itself, as VP8L remains
+//     the underlying image encoding format.
+//
+//   - CompressionLevel:
+//     Controls the encoder effort and compression trade-off.
+//
+//     Higher compression levels may improve file size by enabling more
+//     expensive analysis and transform selection steps, at the cost of
+//     increased CPU usage and encoding time.
 type Options struct {
     UseExtendedFormat   bool
+    CompressionLevel    CompressionLevel
 }
 
 // Animation holds configuration settings for WebP animations.
@@ -65,11 +81,17 @@ type Animation struct {
 //   o   - Pointer to Options containing encoding settings:
 //         - UseExtendedFormat: If true, wraps the image in a VP8X container to enable 
 //           extended WebP features like metadata.
+//         - CompressionLevel: Controls encoding effort and compression trade-off.
 //
 // Returns:
 //   An error if encoding fails or writing to the io.Writer encounters an issue.
 func Encode(w io.Writer, img image.Image, o *Options) error {
-    stream, hasAlpha, err := writeBitStream(img)
+    method := getMethodLevel(DefaultCompression)
+    if o != nil {
+        method = getMethodLevel(o.CompressionLevel)
+    }
+
+    stream, hasAlpha, err := writeBitStream(img, method)
     if err != nil {
         return err
     }
@@ -112,11 +134,17 @@ func Encode(w io.Writer, img image.Image, o *Options) error {
 //         - BackgroundColor: Background color for the canvas, used when clearing.
 //   o   - Pointer to Options containing additional encoding settings:
 //         - UseExtendedFormat: Currently unused for animations, but accepted for consistency.
+//         - CompressionLevel: Controls encoding effort and compression trade-off.
 //
 // Returns:
 //   An error if encoding fails or writing to the io.Writer encounters an issue.
 func EncodeAll(w io.Writer, ani *Animation, o *Options) error {
-    frames, alpha, err := writeFrames(ani)
+    method := getMethodLevel(DefaultCompression)
+    if o != nil {
+        method = getMethodLevel(o.CompressionLevel)
+    }
+
+    frames, alpha, err := writeFrames(ani, method)
     if err != nil {
         return err
     }
@@ -147,6 +175,19 @@ func EncodeAll(w io.Writer, ani *Animation, o *Options) error {
     return nil
 }
 
+func getMethodLevel(lvl CompressionLevel) int {
+    switch lvl {
+        case BestSpeed:
+            return 0
+        case DefaultCompression:
+            return 4
+        case BestCompression:
+            return 6
+        default:
+            return 4
+    }
+}
+
 func writeChunkVP8X(buf *bytes.Buffer, bounds image.Rectangle, flagAlpha, flagAni bool) {
     buf.Write([]byte("VP8X"))
     binary.Write(buf, binary.LittleEndian, uint32(10))
@@ -170,7 +211,7 @@ func writeChunkVP8X(buf *bytes.Buffer, bounds image.Rectangle, flagAlpha, flagAn
     buf.Write([]byte{byte(dy), byte(dy >> 8), byte(dy >> 16)})
 }
 
-func writeFrames(ani *Animation) (*bytes.Buffer, bool, error) {
+func writeFrames(ani *Animation, method int) (*bytes.Buffer, bool, error) {
     if len(ani.Images) == 0 {
         return nil, false, errors.New("must provide at least one image")
     }
@@ -192,7 +233,7 @@ func writeFrames(ani *Animation) (*bytes.Buffer, bool, error) {
     
     var hasAlpha bool
     for i, img := range ani.Images {
-        stream, alpha, err := writeBitStream(img)
+        stream, alpha, err := writeBitStream(img, method)
         if err != nil {
             return nil, false, err
         }
@@ -223,7 +264,7 @@ func writeFrames(ani *Animation) (*bytes.Buffer, bool, error) {
     return buf, hasAlpha, nil
 }
 
-func writeBitStream(img image.Image) (*bytes.Buffer, bool, error) {
+func writeBitStream(img image.Image, method int) (*bytes.Buffer, bool, error) {
     if img == nil {
         return nil, false, errors.New("image is nil")
     }
@@ -252,7 +293,10 @@ func writeBitStream(img image.Image) (*bytes.Buffer, bool, error) {
     transforms[transformSubGreen] = !isIndexed
     transforms[transformColorIndexing] = isIndexed
 
-    err := writeBitStreamData(s, rgba, 4, transforms)
+    histoBits := getHistoBits(method, isIndexed, img.Bounds().Dx(), img.Bounds().Dy())
+    transBits := getTransformBits(method, histoBits)
+
+    err := writeBitStreamData(s, rgba, 11, histoBits, transBits, transforms)
     if err != nil {
         return nil, false, err
     }
@@ -281,7 +325,7 @@ func writeBitStreamHeader(w *bitWriter, bounds image.Rectangle, hasAlpha bool) {
     w.writeBits(0, 3)
 }
 
-func writeBitStreamData(w *bitWriter, img image.Image, colorCacheBits int, transforms [4]bool) error {
+func writeBitStreamData(w *bitWriter, img image.Image, colorBits, histoBits, transBits int, transforms [4]bool) error {
     pixels, err := flatten(img)
     if err != nil {
         return err
@@ -302,7 +346,7 @@ func writeBitStreamData(w *bitWriter, img image.Image, colorCacheBits int, trans
         width = pw
        
         w.writeBits(uint64(len(pal) - 1), 8);
-        writeImageData(w, pal, len(pal), 1, false, colorCacheBits);
+        writeImageData(w, pal, len(pal), 1, false, 0);
     }
 
     if transforms[transformSubGreen] {
@@ -316,32 +360,32 @@ func writeBitStreamData(w *bitWriter, img image.Image, colorCacheBits int, trans
         w.writeBits(1, 1)
         w.writeBits(1, 2)
 
-        bits, bw, bh, blocks := applyColorTransform(pixels, width, height)
+        bw, bh, blocks := applyColorTransform(pixels, width, height, transBits)
 
-        w.writeBits(uint64(bits - 2), 3);
-        writeImageData(w, blocks, bw, bh, false, colorCacheBits)
+        w.writeBits(uint64(transBits - 2), 3);
+        writeImageData(w, blocks, bw, bh, false, 0)
     }
 
     if transforms[transformPredict] {
         w.writeBits(1, 1)
         w.writeBits(0, 2)
 
-        bits, bw, bh, blocks := applyPredictTransform(pixels, width, height)
+        bw, bh, blocks := applyPredictTransform(pixels, width, height, transBits)
 
-        w.writeBits(uint64(bits - 2), 3);
-        writeImageData(w, blocks, bw, bh, false, colorCacheBits)
+        w.writeBits(uint64(transBits - 2), 3);
+        writeImageData(w, blocks, bw, bh, false, 0)
     }
 
     w.writeBits(0, 1) // end of transform
-    writeImageData(w, pixels, width, height, true, colorCacheBits)
+    writeImageData(w, pixels, width, height, true, colorBits)
 
     return nil
 }
 
-func writeImageData(w *bitWriter, pixels []color.NRGBA, width, height int, isRecursive bool, colorCacheBits int) {
-    if colorCacheBits > 0 {
+func writeImageData(w *bitWriter, pixels []color.NRGBA, width, height int, isRecursive bool, colorBits int) {
+    if colorBits > 0 {
         w.writeBits(1, 1)
-        w.writeBits(uint64(colorCacheBits), 4) 
+        w.writeBits(uint64(colorBits), 4) 
     } else {
         w.writeBits(0, 1)
     }
@@ -350,8 +394,8 @@ func writeImageData(w *bitWriter, pixels []color.NRGBA, width, height int, isRec
         w.writeBits(0, 1)
     }
 
-    encoded := encodeImageData(pixels, width, height, colorCacheBits)
-    histos := computeHistograms(encoded, colorCacheBits)
+    encoded := encodeImageData(pixels, width, height, colorBits)
+    histos := computeHistograms(encoded, colorBits)
 
     var codes [][]huffmanCode
     for i := 0; i < 5; i++ {
@@ -382,10 +426,10 @@ func writeImageData(w *bitWriter, pixels []color.NRGBA, width, height int, isRec
     }
 }
 
-func encodeImageData(pixels []color.NRGBA, width, height, colorCacheBits int) []int {
-    head := make([]int, 1 << 14)
+func encodeImageData(pixels []color.NRGBA, width, height, colorBits int) []int {
+    head := make([]int, 1 << 18)
     prev := make([]int, len(pixels))
-    cache := make([]color.NRGBA, 1 << colorCacheBits)
+    cache := make([]color.NRGBA, 1 << colorBits)
 
     encoded := make([]int, len(pixels) * 4)
     cnt := 0
@@ -400,13 +444,13 @@ func encodeImageData(pixels []color.NRGBA, width, height, colorCacheBits int) []
         118, 113, 103,  92,  80,  68,  60,  56,  54,  57,  61,  69,  81,  93, 104, 114,
         119, 116, 111, 106,  97,  88,  84,  74,  72,  75,  85,  89,  98, 107, 112, 117,
     }
-
+    
     for i := 0; i < len(pixels); i++ {
         if i + 2 < len(pixels) {
-            h := hash(pixels[i + 0], 14)
-            h ^= hash(pixels[i + 1], 14) * 0x9e3779b9
-            h ^= hash(pixels[i + 2], 14) * 0x85ebca6b
-            h = h % (1 << 14)
+            h := hash(pixels[i + 0], 18)
+            h ^= hash(pixels[i + 1], 18) * 0x9e3779b9
+            h ^= hash(pixels[i + 2], 18) * 0x85ebca6b
+            h = h % (1 << 18)
 
             cur := head[h] - 1
             prev[i] = head[h]
@@ -414,7 +458,7 @@ func encodeImageData(pixels []color.NRGBA, width, height, colorCacheBits int) []
 
             dis := 0
             streak := 0
-            for j := 0; j < 8; j++ {
+            for j := 0; j < 128; j++ {
                 // 1 << 20: sliding window size is 2^20 (1,048,576) per WebP specs.
                 // 120: reserved margin for offset adjustments.
                 if cur == -1 || i - cur >= 1 << 20 - 120 {
@@ -441,7 +485,7 @@ func encodeImageData(pixels []color.NRGBA, width, height, colorCacheBits int) []
             // Only use the match if it is at least 3 pixels long per WebP specs.
             if streak >= 3 {
                 for j := 0; j < streak; j++ {
-                    h := hash(pixels[i + j], colorCacheBits)
+                    h := hash(pixels[i + j], colorBits)
                     cache[h] = pixels[i + j]
                 }
                 
@@ -470,8 +514,8 @@ func encodeImageData(pixels []color.NRGBA, width, height, colorCacheBits int) []
         }
 
         p := pixels[i]
-        if colorCacheBits > 0 {
-            hash := hash(p, colorCacheBits)
+        if colorBits > 0 {
+            hash := hash(p, colorBits)
 
             if i > 0 && cache[hash] == p {
                 encoded[cnt] = int(hash + 256 + 24)
@@ -525,10 +569,10 @@ func hash(c color.NRGBA, shifts int) uint32 {
     return (x * 0x1e35a7bd) >> (32 - min(shifts, 32))
 }
 
-func computeHistograms(pixels []int, colorCacheBits int) [][]int {
+func computeHistograms(pixels []int, colorBits int) [][]int {
     c := 0
-    if colorCacheBits > 0 {
-        c = 1 << colorCacheBits
+    if colorBits > 0 {
+        c = 1 << colorBits
     }
 
     histos := [][]int{
@@ -553,6 +597,47 @@ func computeHistograms(pixels []int, colorCacheBits int) [][]int {
     }
 
     return histos
+}
+
+func getTransformBits(method, histoBits int) int {
+    maxBits := 5
+    if method < 4 {
+        maxBits = 6
+    } else if method > 4 {
+        maxBits = 4
+    } 
+
+    return min(histoBits, maxBits)
+}
+
+func getHistoBits(method int, isIndexed bool, width, height int) int {
+    bits := 9 - method
+    if !isIndexed {
+        bits = 7 - method
+    }
+
+    subSample := func (size, bits int) int {
+        return (size + (1 << bits) - 1) >> bits
+    }
+ 
+    bits = min(max(bits, MIN_HUFFMAN_BITS), MAX_HUFFMAN_BITS)
+    size := subSample(width, bits) * subSample(height, bits)
+
+    for bits < MAX_HUFFMAN_BITS && size > MAX_HUFF_IMAGE_SIZE {
+        bits++
+        size = subSample(width, bits) * subSample(height, bits)
+    }
+
+    for bits > MIN_HUFFMAN_BITS && size == 1 {
+        size = subSample(width, bits - 1) * subSample(height, bits - 1)
+        if size != 1 {
+            break
+        }
+
+        bits--
+    }
+
+    return bits
 }
 
 func flatten(img image.Image) ([]color.NRGBA, error) {
