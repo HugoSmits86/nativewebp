@@ -65,7 +65,9 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 // Returns:
 //   The decoded image as image.Image or an error if the decoding fails.
 func DecodeIgnoreAlphaFlag(r io.Reader) (image.Image, error) {
-    data, err := io.ReadAll(r)
+    // Limit reads to 256 MiB to prevent excessive memory usage
+    // or maliciously large WebP files from exhausting RAM.
+    data, err := io.ReadAll(io.LimitReader(r, 256 * 1024 * 1024))
     if err != nil {
         return nil, err
     }
