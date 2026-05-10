@@ -14,7 +14,7 @@ We provide WebP decoding through a wrapper around `golang.org/x/image/webp`, wit
 ## Benchmark
 
 We conducted a quick benchmark to showcase file size reduction and encoding performance. Using an image from Google’s WebP Lossless and Alpha Gallery, we compared the results of our nativewebp encoder with the standard PNG encoder. <br/><br/>
-For the PNG encoder, we applied the `png.BestCompression` setting to achieve the most competitive compression outcomes.
+For the PNG encoder, we used `png.BestCompression`. Likewise, nativewebp was configured with `nativewebp.BestCompression` so both encoders were benchmarked using their maximum compression settings.
 <br/><br/>
 
 <table align="center">
@@ -29,66 +29,66 @@ For the PNG encoder, we applied the `png.BestCompression` setting to achieve the
     <td rowspan="2" height="110px"><p align="center"><img src="https://www.gstatic.com/webp/gallery3/1.png" height="100px"></p></td>
     <td>file size</td>
     <td>120 kb</td>
-    <td>96 kb</td>
-    <td>20% smaller</td>
+    <td>95 kb</td>
+    <td>21% smaller</td>
   </tr>
   <tr>
     <td>encoding time</td>
     <td>42945049 ns/op</td>
-    <td>27716447 ns/op</td>
-    <td>35% faster</td>
+    <td>35413726 ns/op</td>
+    <td>17% faster</td>
   </tr>
   <tr>
     <td rowspan="2" height="110px"><p align="center"><img src="https://www.gstatic.com/webp/gallery3/2.png" height="100px"></p></td>
     <td>file size</td>
     <td>46 kb</td>
-    <td>36 kb</td>
-    <td>22% smaller</td>
+    <td>35 kb</td>
+    <td>24% smaller</td>
   </tr>
   <tr>
     <td>encoding time</td>
     <td>98509399 ns/op</td>
-    <td>31461759 ns/op</td>
-    <td>68% faster</td>
+    <td>42626779 ns/op</td>
+    <td>57% faster</td>
   </tr>
   <tr>
     <td rowspan="2" height="110px"><p align="center"><img src="https://www.gstatic.com/webp/gallery3/3.png" height="100px"></p></td>
     <td>file size</td>
     <td>236 kb</td>
-    <td>194 kb</td>
-    <td>18% smaller</td>
+    <td>190 kb</td>
+    <td>19% smaller</td>
   </tr>
   <tr>
     <td>encoding time</td>
     <td>178205535 ns/op</td>
-    <td>102454192 ns/op</td>
-    <td>43% faster</td>
+    <td>96800750 ns/op</td>
+    <td>46% faster</td>
   </tr>
   <tr>
     <td rowspan="2" height="110px"><p align="center"><img src="https://www.gstatic.com/webp/gallery3/4.png" height="60px"></p></td>
     <td>file size</td>
     <td>53 kb</td>
-    <td>41 kb</td>
-    <td>23% smaller</td>
+    <td>39 kb</td>
+    <td>26% smaller</td>
   </tr>
   <tr>
     <td>encoding time</td>
     <td>29088555 ns/op</td>
-    <td>14959849 ns/op</td>
-    <td>49% faster</td>
+    <td>19877708 ns/op</td>
+    <td>32% faster</td>
   </tr>
   <tr>
     <td rowspan="2" height="110px"><p align="center"><img src="https://www.gstatic.com/webp/gallery3/5.png" height="100px"></p></td>
     <td>file size</td>
     <td>139 kb</td>
-    <td>123 kb</td>
-    <td>12% smaller</td>
+    <td>119 kb</td>
+    <td>14% smaller</td>
   </tr>
   <tr>
     <td>encoding time</td>
     <td>63423995 ns/op</td>
-    <td>21717392 ns/op</td>
-    <td>66% faster</td>
+    <td>27813126 ns/op</td>
+    <td>56% faster</td>
   </tr>
 </table>
 <p align="center">
